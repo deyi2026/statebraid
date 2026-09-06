@@ -2,77 +2,157 @@
 
 ## Product statement
 
-StateBraid is an agent-aware local inference runtime that preserves both compute continuity and task-state continuity during long-running agent work.
+StateBraid is an **agent-aware compute-continuity runtime** for long-running local
+agents. It preserves mechanical model-serving state so repeated work can reuse
+valid compute without introducing a second semantic decision system.
 
-The v0.1 boundary exists to prevent the research project from becoming an unbounded collection of serving, memory, planning, and agent features.
+The v0.1 boundary exists to keep StateBraid narrow: it is not a second agent
+harness, memory system, planner, or task-state authority.
 
-## The three v0.1 capabilities
+## What StateBraid owns
 
-### 1. Compute continuity
+### 1. Exact compute identity
 
-StateBraid may manage mechanical serving state such as:
+Cache identity is mechanical. A cache key is defined by an ownership/trust
+namespace and the exact token sequence. StateBraid may match and credit only the
+prefix actually served.
 
-- prompt/KV cache entries;
-- stable shared prefixes;
-- active session tails;
-- sequence-slot and byte budgets;
-- cache admission, eviction, and recovery bookkeeping.
+Semantic labels from an upstream agent harness do not redefine cache identity.
 
-It must preserve correctness before hit rate. Cross-session reuse must never permit state from one ownership domain to be interpreted as another session's content.
+### 2. Stable and active compute continuity
 
-### 2. Selected-evidence continuity
+StateBraid manages two important transient roles:
 
-When old tool work must be folded, StateBraid may expose mechanically identified evidence groups and let the model select which original groups remain direct.
+- **stable**: a reusable shared prefix whose value has been established from
+  observed reuse facts;
+- **active**: the exact current successor/tail needed to continue generation
+  safely.
 
-A valid selected group is atomic:
+Stable admission and active replacement are based on exact token lineage,
+observed reuse, and resource pressure, not task meaning.
 
-- original assistant tool declaration;
-- all matching tool-result messages required by the protocol group.
+### 3. Bounded KV/prompt-cache residency
 
-The runtime may validate identity, completeness, size, scope, and recoverability. It must not infer relevance, sufficiency, task completion, or semantic importance on the model's behalf.
+StateBraid owns mechanical cache residency under independent constraints:
 
-Unselected evidence may be projected as a recoverable receipt when durable recovery exists.
+- sequence-slot capacity;
+- byte capacity;
+- transient reserve;
+- optional operator-declared mechanical pin roles.
 
-### 3. Provider-interruption continuity
+Hard resource limits ultimately win. A long-lived entry must not silently starve
+all transient capacity.
 
-A provider finish reason such as `length` or `max_tokens` is an interruption boundary, not a normal completion boundary.
+### 4. Transactional cache mutation
 
-StateBraid should retain the exact partial assistant output and expose only factual runtime state needed for a later continuation. It must not rewrite durable human input to manufacture a continuation instruction.
+Admission, eviction, trim, backend mutation and policy bookkeeping form one
+transactional boundary. Failed mutation must restore both backend state and
+policy state rather than leaving split-brain cache bookkeeping.
 
-## Ownership boundary
+### 5. Generation-safe reuse
 
-### Runtime owns
+An exact cache hit must still leave valid generation input. For the validated
+hybrid/non-trimmable MLX path, an exact N hit is recovered through an N-1
+checkpoint plus one replay token, or through full recompute when no safe shorter
+checkpoint exists.
 
-- cache correctness;
-- protocol integrity;
-- immutable identifiers and digests;
-- byte/token/resource limits;
-- provider finish-state facts;
-- storage and recovery mechanics;
-- authorization/security hard boundaries.
+### 6. Factual compute telemetry
 
-### Model owns
+StateBraid may expose facts such as cache mode, cache-hit tokens, stable/active
+entry counts, bytes, admissions, evictions, or generation replay tokens.
 
-- what evidence is relevant;
+Telemetry is observational. StateBraid does not use telemetry to decide task
+strategy, evidence relevance, tool choice, fold policy, or task completion.
+
+## What the agent harness owns
+
+Task/evidence/execution continuity is outside StateBraid. The agent harness owns,
+when those capabilities exist:
+
+- selected raw evidence and evidence provenance;
+- fold/receipt projection and recovery;
+- working-state/checkpoint storage and projection;
+- provider-interruption and partial-output continuation;
+- durable Session/EventLog state;
+- Goal/handoff state;
+- SubAgent ownership and orchestration;
+- ExecutionWorkspace state;
+- tool protocol and task lifecycle state.
+
+A harness may use StateBraid as its serving runtime without giving StateBraid
+semantic authority over any of those mechanisms.
+
+## What the model owns
+
+The model keeps semantic judgment:
+
+- what evidence matters;
 - whether evidence is sufficient;
 - task strategy;
 - tool choice;
-- whether to continue or answer;
-- semantic checkpoint contents when a checkpoint capability is available.
+- what state to preserve when the harness offers a model-authored capability;
+- whether to continue or answer.
 
-## Explicitly dormant in v0.1 baseline
+StateBraid does not infer these decisions from cache state, request labels, or
+telemetry.
 
-Automatic checkpoint production is not a required enabled feature for the v0.1 baseline. Research showed that exposing a checkpoint capability can be made non-coercive, but current model adoption is not yet strong enough to justify enabling a producer by default.
+## Integration boundary
+
+The intended relationship is:
+
+```text
+Agent harness
+  owns task / evidence / execution continuity
+          |
+          | serving requests + opaque semantic content
+          v
+StateBraid Runtime
+  owns compute continuity only
+          |
+          | backend cache/storage operations
+          v
+Model-serving backend
+```
+
+StateBraid should not require an LFL-specific Python dependency. The current LFL
+integration is a qualification client that verifies compute changes do not alter
+observable agent behavior.
+
+## Validated v0.1 scope
+
+The current production canary/qualification evidence covers the Ornith/Qwen
+hybrid non-trimmable MLX path with:
+
+- explicit opt-in StateBraid activation;
+- StateBraid and CognitivePromptCache as mutually exclusive policy owners;
+- StateBraid default-off;
+- exact-hit N-1 generation safety;
+- stable/active reuse under sequence and byte budgets;
+- semantic blindness to legacy `cache_tag` values;
+- successful rollback to the Cognitive control after qualification.
+
+Generic trimmable-KV production parity is not yet claimed.
 
 ## Success criteria
 
-A v0.1 candidate should demonstrate all of the following on repeatable agent benchmarks:
+A v0.1 compute candidate should demonstrate all of the following:
 
-1. warm stable-prefix reuse without cross-session contamination;
-2. bounded cache residency under both sequence and byte pressure;
-3. generation-safe cache hits;
-4. selected raw evidence produces no more semantic re-checks than full raw history on validated tasks;
-5. selected evidence materially reduces provider-visible context compared with full raw history;
-6. provider-length interruption resumes from the actual partial rather than restarting the answer;
-7. benchmark reports distinguish cache-reported tokens from unknown cache telemetry;
-8. duplicate tool calls, evidence support, completion, truncation, and new-prefill tokens are measured separately.
+1. warm stable-prefix reuse without ownership/trust-domain contamination;
+2. bounded residency under both sequence and byte pressure;
+3. stable/active lineage based on exact tokens rather than semantic labels;
+4. correct rollback after failed cache mutation;
+5. generation-safe exact hits;
+6. factual telemetry that distinguishes reported cache reuse from unknown values;
+7. no semantic cache authority from agent-layer labels;
+8. unchanged agent completion/evidence/tool behavior in a frozen integration
+   qualification when compute policy is the only intended variable.
+
+The last criterion is a regression gate, not a transfer of agent semantics into
+StateBraid.
+
+## Tagline interpretation
+
+**Less recompute. Less redo.** remains the project tagline. StateBraid directly
+implements the first half by preserving compute continuity. The second half is a
+system-level outcome achieved when a continuity-aware agent harness uses a
+compute runtime without losing its own task/evidence/execution state.

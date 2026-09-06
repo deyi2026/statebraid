@@ -1,38 +1,53 @@
 # StateBraid Roadmap
 
-## v0.1 -- boundary and reproducibility
+## v0.1 -- compute boundary and reproducibility
 
-- Freeze the three-capability product boundary.
 - **DONE (Phase 1):** extract stable/active compute-continuity policy as an attributable, backend-neutral component.
-- Import selected-evidence continuity as a reviewable runtime component rather than a benchmark-only experiment.
-- Import provider-interruption continuity with its one-shot resume contract.
-- **DONE (Phase 1.5):** establish and verify a single install/test path from a fresh checkout.
+- **DONE (Phase 1.5):** establish a narrow transactional MLX storage adapter and a reproducible fresh-checkout install/test path.
 - **DONE (Phase 1.6):** validate MLX production activation as an explicit, default-off canary and restore the prior runtime afterwards.
-- **DONE (Phase 1.6.1):** harden activation so StateBraid ignores legacy semantic cache tags, defaults to semantic-blind residency, and uses one generation-safety source of truth in StateBraid mode.
-- **DONE (Phase 1.6.2):** qualify the mechanical policy through an immutable, unchanged LFL agent path with equivalent completion/evidence/tool/cache behavior and real N-1 exact-hit safety.
+- **DONE (Phase 1.6.1):** remove legacy semantic cache authority from the StateBraid path and use one generation-safety source of truth when StateBraid is active.
+- **DONE (Phase 1.6.2):** qualify the mechanical policy through an immutable, unchanged LFL client path with equivalent completion/evidence/tool/cache behavior and real N-1 exact-hit safety.
 - **DONE (Phase C):** freeze the qualified compute surface as Compute Contract v0.1 with public-subset and black-box compatibility gates; keep activation default-off and CognitivePromptCache as rollback/control.
-- Add privacy and ownership tests for cross-session cache reuse.
-- Add one canonical agent benchmark suite that measures completion, duplicate work, evidence support, cache reuse, and new prefill.
+- **DONE (Phase D):** align product/architecture/package/security documentation to a compute-only StateBraid boundary; agent task/evidence/execution continuity remains harness-owned.
+- Add explicit cross-session namespace/trust-domain privacy tests.
+- Maintain one canonical integration benchmark that detects agent-behavior regressions while reporting cache reuse, new prefill, worker health and factual compute telemetry.
 
-## v0.2 -- backend abstraction
+## v0.2 -- backend abstraction and capability reporting
 
-- **Started in Phase 1:** core compute-continuity policy is already separated from MLX-specific cache objects.
-- Keep MLX as the first-class backend.
+- **Started in Phase 1:** core compute-continuity policy is separated from MLX-specific cache objects.
+- Keep MLX as the first-class backend while preserving a backend-neutral core.
 - **DONE (Phase 1.5):** define and verify a narrow transactional MLX storage adapter without depending on private trie internals.
-- **Started in Phase 1.6:** expose bounded cache-policy telemetry needed to verify activation and prefix reuse.
-- Define backend capability reporting for interruption metadata.
+- **Started in Phase 1.6:** expose bounded factual cache-policy telemetry needed to verify activation and prefix reuse.
+- Define backend capability reporting for exact storage, trimmability, generation-safe replay, sequence capacity and byte accounting.
+- Qualify generic trimmable-KV behavior separately before claiming parity beyond the current Ornith/Qwen hybrid path.
 
-## v0.3 -- multi-session hardening
+## v0.3 -- multi-session compute hardening
 
 - Explicit cache namespaces / trust domains.
-- Session ownership and cache-salt equivalent protection where needed.
-- Crash/restart recovery tests.
-- Durable cache policy experiments only after correctness gates pass.
+- Session ownership and cache-salt-equivalent protection where needed.
+- Crash/restart recovery for compute/cache state where correctness can be proven.
+- Durable cache-policy experiments only after correctness gates pass.
 
-## Deferred research
+## Outside the StateBraid roadmap -- agent harness ownership
 
-- automatic/model-authored checkpoint producer enablement;
+The following are intentionally not future StateBraid features unless the product
+boundary is explicitly reconsidered:
+
+- selected raw evidence and evidence ranking;
+- fold/receipt and working-state/checkpoint policy;
+- provider-interruption task continuation;
+- Goal/handoff state;
+- SubAgent ownership/orchestration;
+- ExecutionWorkspace and durable session/event state;
+- task planning, tool selection, or completion judgment.
+
+These belong to the agent harness and/or model. StateBraid may be qualified against
+them as an unchanged client, but it does not implement them.
+
+## Deferred StateBraid research
+
 - distributed KV tiers;
 - aggressive KV quantization defaults;
-- semantic memory/ranking owned by the runtime;
-- large-scale continuous batching.
+- large-scale continuous batching;
+- persistent compute-state recovery across process restart;
+- additional serving backends after the MLX contract is stable.

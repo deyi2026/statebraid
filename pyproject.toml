@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "statebraid"
 version = "0.1.0.dev0"
-description = "Agent-aware inference runtime for compute and reasoning continuity"
+description = "Agent-aware compute-continuity runtime for long-running local agents"
 requires-python = ">=3.11"
 
 [tool.setuptools.packages.find]

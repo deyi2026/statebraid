@@ -1,6 +1,8 @@
 # Security and Privacy Boundary
 
-StateBraid handles state that may contain private prompts, tool outputs, source code, and local paths. Correct cache reuse is therefore a security property, not only a performance feature.
+StateBraid handles model-serving state derived from private prompts, tool outputs,
+source code, and local paths. Correct cache reuse is therefore a security property,
+not only a performance feature.
 
 ## Repository hygiene
 
@@ -16,11 +18,28 @@ Do not commit:
 
 ## Runtime principles
 
-- Cross-session cache hits must respect explicit ownership/trust boundaries.
-- A cache hit must never cause content from another session to become conversational state.
-- Evidence selection must preserve provenance and complete tool protocol groups.
-- Provider interruption metadata must not be confused with human-authored text.
-- Safety and authorization boundaries remain mechanical hard constraints even under an LLM-first policy.
+- Cross-session cache hits must respect explicit namespace/ownership/trust boundaries.
+- A cache hit must never cause content from another trust domain to become visible as
+  conversational state.
+- Cache identity and reuse decisions are based on mechanical token/namespace facts,
+  not semantic labels supplied by an agent harness.
+- StateBraid and another cache policy must not silently own admission/eviction at the
+  same time.
+- Failed transactional mutation must restore both backend and policy state.
+- Exact hits must remain generation-safe; an empty generation input is not a valid
+  performance optimization.
+- Factual cache telemetry must not be promoted into agent strategy or semantic
+  decisions inside StateBraid.
+- Safety, authorization, privacy, and hard resource limits remain mechanical hard
+  constraints.
+
+## Agent-layer security boundary
+
+Selected evidence, fold/receipt recovery, provider-interruption continuation,
+Goal/handoff, SubAgent, ExecutionWorkspace, and durable session/event state are not
+StateBraid responsibilities. Their protocol and privacy rules belong to the agent
+harness. StateBraid should receive only the serving inputs and mechanical namespace
+information required for safe compute reuse.
 
 ## Before every remote push
 
