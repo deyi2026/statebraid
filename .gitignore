@@ -1,0 +1,42 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local models / caches
+models/
+mlx-models/
+*.safetensors
+*.gguf
+*.bin
+.cache/
+
+# Runtime and research data
+data/
+logs/
+*.log
+*.jsonl
+bench-results/
+results/
+artifacts/
+
+# Local experiment/worktree material
+.worktrees/
+research-*/
+integration-*/
+s1-*/
+
+# Secrets and local auth
+*.pem
+*.key
+credentials*
+secrets*
