@@ -52,12 +52,15 @@ The runtime supplies capabilities and mechanical boundaries. The model keeps own
 
 Phase 1 compute continuity is now extracted into a backend-neutral core. The repository contains stable/active working-set policy, sequence + byte budget planning, transactional backend coordination, and exact-hit generation safety without importing the MLX-LM fork into the core package.
 
+Phase 1.5 adds a narrow MLX storage adapter backed by a public transactional-storage capability. StateBraid still does not access MLX-LM private trie/LRU fields, and production server activation remains opt-in/future work.
+
 The research workspace remains a source of experimental evidence; experimental worktrees, local model files, logs, generated evidence, and unrelated upstream history stay outside this repository.
 
 See:
 
 - [`docs/PRODUCT_BOUNDARY.md`](docs/PRODUCT_BOUNDARY.md)
 - [`docs/PHASE1_COMPUTE_CONTINUITY.md`](docs/PHASE1_COMPUTE_CONTINUITY.md)
+- [`docs/PHASE1_5_MLX_STORAGE_ADAPTER.md`](docs/PHASE1_5_MLX_STORAGE_ADAPTER.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`SECURITY.md`](SECURITY.md)

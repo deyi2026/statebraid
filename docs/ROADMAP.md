@@ -6,7 +6,7 @@
 - **DONE (Phase 1):** extract stable/active compute-continuity policy as an attributable, backend-neutral component.
 - Import selected-evidence continuity as a reviewable runtime component rather than a benchmark-only experiment.
 - Import provider-interruption continuity with its one-shot resume contract.
-- Establish a single install/test path from a fresh checkout.
+- **DONE (Phase 1.5):** establish and verify a single install/test path from a fresh checkout.
 - Add privacy and ownership tests for cross-session cache reuse.
 - Add one canonical agent benchmark suite that measures completion, duplicate work, evidence support, cache reuse, and new prefill.
 
@@ -14,7 +14,7 @@
 
 - **Started in Phase 1:** core compute-continuity policy is already separated from MLX-specific cache objects.
 - Keep MLX as the first-class backend.
-- Define a narrow storage adapter for prefix lookup/insert/remove/capture/restore without depending on private trie internals.
+- **DONE (Phase 1.5):** define and verify a narrow transactional MLX storage adapter without depending on private trie internals.
 - Define backend capability reporting for prefix reuse, cache telemetry, and interruption metadata.
 
 ## v0.3 -- multi-session hardening

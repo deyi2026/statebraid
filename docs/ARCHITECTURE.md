@@ -87,3 +87,11 @@ The first product extraction deliberately separates policy from storage:
 The core does not embed an MLX-LM trie or copy KV tensors. Backend snapshots are opaque references, so transaction rollback restores references rather than cloning model state. Concurrent runtimes should use `CacheCoordinator` high-level methods so planning, backend mutation, and policy commit remain one serialized operation.
 
 See [`PHASE1_COMPUTE_CONTINUITY.md`](PHASE1_COMPUTE_CONTINUITY.md) for source provenance and the reviewed extraction boundary.
+
+## Phase 1.5 MLX storage boundary
+
+The MLX adapter depends on one public capability, `transactional_storage()`, not MLX-LM private cache fields. The facade exposes exact capture/remove/restore/insert and is an exclusive-storage mode: StateBraid owns admission and eviction while it is active.
+
+`CognitivePromptCache` is intentionally not stackable with StateBraid policy because both would own stable/active admission. Future MLX production activation should select one policy authority.
+
+See [`PHASE1_5_MLX_STORAGE_ADAPTER.md`](PHASE1_5_MLX_STORAGE_ADAPTER.md).

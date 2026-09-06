@@ -2,7 +2,7 @@
 
 ## mlx-lm
 
-StateBraid Phase 1 was developed from experiments performed on a local thin fork of Apple's `mlx-lm`. The StateBraid core rewrites the reviewed compute-continuity policy behind a backend-neutral contract; it does not vendor the MLX-LM package or its cache trie implementation.
+StateBraid Phase 1 and Phase 1.5 were developed from experiments performed on a local thin fork of Apple's `mlx-lm`. The StateBraid core rewrites the reviewed compute-continuity policy behind a backend-neutral contract; it does not vendor the MLX-LM package or its cache trie implementation.
 
 The optional MLX adapter and the exact-hit generation-safety behavior are derived from work performed against `mlx-lm`, which is distributed under the MIT License:
 
