@@ -50,14 +50,32 @@ The runtime supplies capabilities and mechanical boundaries. The model keeps own
 
 ## Current status
 
-StateBraid is being extracted from an active research workspace. The current repository is the clean product boundary and integration target; experimental worktrees, local model files, logs, generated evidence, and unrelated upstream history are deliberately excluded.
+Phase 1 compute continuity is now extracted into a backend-neutral core. The repository contains stable/active working-set policy, sequence + byte budget planning, transactional backend coordination, and exact-hit generation safety without importing the MLX-LM fork into the core package.
+
+The research workspace remains a source of experimental evidence; experimental worktrees, local model files, logs, generated evidence, and unrelated upstream history stay outside this repository.
 
 See:
 
 - [`docs/PRODUCT_BOUNDARY.md`](docs/PRODUCT_BOUNDARY.md)
+- [`docs/PHASE1_COMPUTE_CONTINUITY.md`](docs/PHASE1_COMPUTE_CONTINUITY.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`SECURITY.md`](SECURITY.md)
+- [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
+
+## Development verification
+
+StateBraid Phase 1 uses a zero-dependency standard-library test path:
+
+```bash
+PYTHONPATH=src python3 -m unittest discover -s tests -v
+```
+
+Static type verification, when Pyright is available:
+
+```bash
+PYTHONPATH=src pyright src tests
+```
 
 ## Project identity
 

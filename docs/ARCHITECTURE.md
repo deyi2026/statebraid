@@ -75,3 +75,15 @@ StateBraid benchmarks should report at least:
 - new-prefill tokens only when cached-token telemetry is known;
 - per-round request latency;
 - TTFT only when it is truly measured, never inferred from full request latency.
+
+## Phase 1 implementation boundary
+
+The first product extraction deliberately separates policy from storage:
+
+- `statebraid.cache.policy` owns cache roles, exact token lineage, capacity planning, stable admission, active-successor compaction, trim planning, and transactional orchestration.
+- `statebraid.cache.generation` owns backend-neutral exact-hit generation safety.
+- `statebraid.adapters.mlx` is a thin optional integration layer and has no import-time MLX dependency.
+
+The core does not embed an MLX-LM trie or copy KV tensors. Backend snapshots are opaque references, so transaction rollback restores references rather than cloning model state. Concurrent runtimes should use `CacheCoordinator` high-level methods so planning, backend mutation, and policy commit remain one serialized operation.
+
+See [`PHASE1_COMPUTE_CONTINUITY.md`](PHASE1_COMPUTE_CONTINUITY.md) for source provenance and the reviewed extraction boundary.

@@ -3,7 +3,7 @@
 ## v0.1 -- boundary and reproducibility
 
 - Freeze the three-capability product boundary.
-- Import the stable/active compute-continuity implementation as an attributable, reviewable component.
+- **DONE (Phase 1):** extract stable/active compute-continuity policy as an attributable, backend-neutral component.
 - Import selected-evidence continuity as a reviewable runtime component rather than a benchmark-only experiment.
 - Import provider-interruption continuity with its one-shot resume contract.
 - Establish a single install/test path from a fresh checkout.
@@ -12,9 +12,10 @@
 
 ## v0.2 -- backend abstraction
 
-- Separate StateBraid semantic contracts from MLX-specific cache objects.
+- **Started in Phase 1:** core compute-continuity policy is already separated from MLX-specific cache objects.
 - Keep MLX as the first-class backend.
-- Define a backend capability interface for prefix reuse, cache telemetry, and interruption metadata.
+- Define a narrow storage adapter for prefix lookup/insert/remove/capture/restore without depending on private trie internals.
+- Define backend capability reporting for prefix reuse, cache telemetry, and interruption metadata.
 
 ## v0.3 -- multi-session hardening
 
