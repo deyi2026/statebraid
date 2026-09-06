@@ -8,6 +8,7 @@
 - Import provider-interruption continuity with its one-shot resume contract.
 - **DONE (Phase 1.5):** establish and verify a single install/test path from a fresh checkout.
 - **DONE (Phase 1.6):** validate MLX production activation as an explicit, default-off canary and restore the prior runtime afterwards.
+- **DONE (Phase 1.6.1):** harden activation so StateBraid ignores legacy semantic cache tags, defaults to semantic-blind residency, and uses one generation-safety source of truth in StateBraid mode.
 - Add privacy and ownership tests for cross-session cache reuse.
 - Add one canonical agent benchmark suite that measures completion, duplicate work, evidence support, cache reuse, and new prefill.
 

@@ -12,17 +12,13 @@ import threading
 from dataclasses import dataclass, field as dataclass_field, replace
 from typing import Any, Hashable, Iterable, Protocol, Sequence
 
-PIN_ROLES = frozenset({"goal", "evidence", "identity", "rules"})
+PIN_ROLES: frozenset[str] = frozenset()
 ROLE_RANKS = {
     "assistant": 10,
     "user": 30,
     "system": 50,
     "active": 60,
     "stable": 70,
-    "evidence": 100,
-    "goal": 110,
-    "identity": 120,
-    "rules": 120,
 }
 UNKNOWN_ROLE_RANK = 20
 PIN_RANK_MIN = 100
@@ -107,7 +103,14 @@ class PolicySnapshot:
 
 
 class WorkingSetPolicy:
-    """Plan cache admission/eviction without touching backend payloads."""
+    """Plan cache admission/eviction without touching backend payloads.
+
+    The default policy is deliberately semantic-blind. Roles such as
+    ``goal``, ``rules``, ``identity`` or ``evidence`` have no built-in pin or
+    priority semantics. An operator may explicitly provide ``pin_roles`` for a
+    backend-specific mechanical residency contract, but StateBraid itself does
+    not infer importance from agent/message meaning.
+    """
 
     def __init__(
         self,

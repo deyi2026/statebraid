@@ -80,7 +80,10 @@ class MLXStateBraidPromptCache:
 
     Reads are delegated to the backend's ordinary nearest-prefix lookup. Exact
     storage mutation goes through ``transactional_storage()`` so StateBraid never
-    reaches into MLX-LM private trie/LRU fields.
+    reaches into MLX-LM private trie/LRU fields. Agent-level labels such as
+    ``goal``, ``rules`` or ``evidence`` carry no built-in pin authority; default
+    residency is decided only from token identity, observed reuse, lineage and
+    resource limits.
     """
 
     statebraid_policy_active = True

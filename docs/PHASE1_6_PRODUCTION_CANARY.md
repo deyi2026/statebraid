@@ -4,7 +4,9 @@
 
 Phase 1.6 verifies that the Phase 1 compute-continuity policy and Phase 1.5 MLX
 storage adapter can run inside a real local MLX server without becoming the
-default policy.
+default policy. The real qualification in this phase is specifically for the
+**Ornith/Qwen hybrid non-trimmable cache path**. It is not a claim of parity for
+every MLX model/cache implementation.
 
 The activation remains **explicit opt-in**. The normal runtime was restored
 after the canary.
@@ -104,7 +106,10 @@ log matches. StateBraid was not left enabled.
 
 Phase 1.6 establishes **activation eligibility**, not default enablement.
 
-The compute-continuity stack is now sufficiently grounded to stop changing its
-policy surface while the next v0.1 pillar is developed. The recommended next
-phase is selected-evidence context continuity, with the existing model-selected
-raw-evidence design kept separate from cache-policy semantics.
+The direct untagged canary proves the mechanical StateBraid path itself. A later
+cross-project audit found that an LFL client can still send legacy semantic
+`cache_tag` fields, so this phase alone must not be interpreted as proof that
+the LFL -> StateBraid integration is semantic-blind. Phase 1.6.1 hardens that
+boundary before integration qualification.
+
+See [`PHASE1_6_1_P0_HARDENING.md`](PHASE1_6_1_P0_HARDENING.md).

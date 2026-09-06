@@ -56,6 +56,8 @@ Phase 1.5 adds a narrow MLX storage adapter backed by a public transactional-sto
 
 Phase 1.6 validates that adapter in a real MLX server behind an explicit opt-in activation. The canary preserves a single cache-policy authority, rejects StateBraid + CognitivePromptCache coexistence, and keeps the normal server path unchanged by default. The successful canary does **not** make StateBraid the default production cache policy.
 
+Phase 1.6/1.6.1 qualification is currently limited to the **Ornith/Qwen hybrid non-trimmable** path. Phase 1.6.1 also hardens the boundary to be semantic-blind: legacy agent labels such as `goal`, `rules`, `evidence`, or `identity` do not gain default pin/residency authority. StateBraid admission is based on token identity, observed reuse, exact lineage, and resource bounds. Generic trimmable-KV parity remains a separate future qualification.
+
 The research workspace remains a source of experimental evidence; experimental worktrees, local model files, logs, generated evidence, and unrelated upstream history stay outside this repository.
 
 See:
@@ -64,6 +66,7 @@ See:
 - [`docs/PHASE1_COMPUTE_CONTINUITY.md`](docs/PHASE1_COMPUTE_CONTINUITY.md)
 - [`docs/PHASE1_5_MLX_STORAGE_ADAPTER.md`](docs/PHASE1_5_MLX_STORAGE_ADAPTER.md)
 - [`docs/PHASE1_6_PRODUCTION_CANARY.md`](docs/PHASE1_6_PRODUCTION_CANARY.md)
+- [`docs/PHASE1_6_1_P0_HARDENING.md`](docs/PHASE1_6_1_P0_HARDENING.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`SECURITY.md`](SECURITY.md)

@@ -48,21 +48,59 @@ class WorkingSetPolicyTest(unittest.TestCase):
         return plan
 
     def test_pin_saturation_reserves_two_transient_slots(self):
-        self.admit(key(1), "goal")
-        self.admit(key(2), "evidence")
-        self.admit(key(3), "rules")
-        self.admit(key(4), "system")
-        self.admit(key(5), "active")
-        snap = self.policy.snapshot()
+        policy = WorkingSetPolicy(
+            max_sequences=4,
+            max_bytes=400,
+            pin_roles=frozenset({"manual-pin-a", "manual-pin-b", "manual-pin-c"}),
+        )
+        backend = FakeBackend()
+        coordinator = CacheCoordinator(policy, backend)
+        for cache_key, role in (
+            (key(1), "manual-pin-a"),
+            (key(2), "manual-pin-b"),
+            (key(3), "manual-pin-c"),
+            (key(4), "system"),
+            (key(5), "active"),
+        ):
+            self.assertTrue(
+                coordinator.admit_entry(cache_key, object(), role=role, nbytes=100)
+            )
+        snap = policy.snapshot()
         self.assertEqual(snap["transient_reserve"], 2)
         self.assertEqual(snap["pin_limit"], 2)
-        self.assertEqual(self.policy.n_sequences, 4)
-        self.assertGreaterEqual(self.policy.pin_quota_evictions, 1)
-        self.assertIsNotNone(self.policy.entry(key(5)))
+        self.assertEqual(policy.n_sequences, 4)
+        self.assertGreaterEqual(policy.pin_quota_evictions, 1)
+        self.assertIsNotNone(policy.entry(key(5)))
+
+    def test_legacy_semantic_roles_are_not_pinned_or_privileged_by_default(self):
+        policy = WorkingSetPolicy(max_sequences=3, max_bytes=300)
+        backend = FakeBackend()
+        coordinator = CacheCoordinator(policy, backend)
+        goal = key(70)
+        evidence = key(71)
+        stable = key(72)
+        active = key(72, 1)
+
+        self.assertTrue(coordinator.admit_entry(goal, object(), role="goal", nbytes=100))
+        self.assertTrue(
+            coordinator.admit_entry(evidence, object(), role="evidence", nbytes=100)
+        )
+        self.assertTrue(
+            coordinator.admit_entry(stable, object(), role="stable", nbytes=100)
+        )
+        self.assertTrue(
+            coordinator.admit_entry(active, object(), role="active", nbytes=100)
+        )
+
+        snapshot = policy.capture_state()
+        self.assertTrue(all(not entry.pinned for entry in snapshot.entries.values()))
+        self.assertIsNone(policy.entry(goal))
+        self.assertIsNotNone(policy.entry(stable))
+        self.assertIsNotNone(policy.entry(active))
 
     def test_stable_lane_rotates_without_removing_active(self):
-        self.admit(key(1), "goal")
-        self.admit(key(2), "evidence")
+        self.admit(key(1), "other-a")
+        self.admit(key(2), "other-b")
         stable1 = key(10)
         active = key(10, 1)
         self.admit(stable1, "stable", nbytes=50)
@@ -88,7 +126,11 @@ class WorkingSetPolicyTest(unittest.TestCase):
         self.assertEqual(self.policy.active_successor_evictions, 1)
 
     def test_byte_pressure_preserves_fitting_stable_active_pair(self):
-        policy = WorkingSetPolicy(max_sequences=8, max_bytes=250)
+        policy = WorkingSetPolicy(
+            max_sequences=8,
+            max_bytes=250,
+            pin_roles=frozenset({"manual-pin"}),
+        )
         backend = FakeBackend()
         coordinator = CacheCoordinator(policy, backend)
 
@@ -97,8 +139,8 @@ class WorkingSetPolicyTest(unittest.TestCase):
             self.assertTrue(plan.accepted)
             coordinator.admit(plan, object())
 
-        admit_local(key(1), "goal", 100)
-        admit_local(key(2), "goal", 100)
+        admit_local(key(1), "manual-pin", 100)
+        admit_local(key(2), "manual-pin", 100)
         stable = key(7)
         active = key(7, 1)
         admit_local(stable, "stable", 50)
@@ -161,7 +203,7 @@ class WorkingSetPolicyTest(unittest.TestCase):
             coordinator.admit(plan, object())
 
         for i in range(4):
-            admit_local(key(30 + i), "goal")
+            admit_local(key(30 + i), "other")
         stable = key(40)
         active = key(40, 1)
         admit_local(stable, "stable", 50)
@@ -246,7 +288,7 @@ class WorkingSetPolicyTest(unittest.TestCase):
                         "model-a", [worker_id, i, worker_id + i]
                     )
                     coordinator.admit_entry(
-                        cache_key, object(), role=("goal" if i % 9 == 0 else "active"), nbytes=50
+                        cache_key, object(), role=("other" if i % 9 == 0 else "active"), nbytes=50
                     )
                     if i % 17 == 0:
                         coordinator.trim_to(n_sequences=6, n_bytes=500)
@@ -279,21 +321,25 @@ class WorkingSetPolicyTest(unittest.TestCase):
         self.assertEqual(entry.hits, 1)
 
     def test_capacity_evicts_low_rank_before_pin_and_working_state(self):
-        policy = WorkingSetPolicy(max_sequences=4, max_bytes=400)
+        policy = WorkingSetPolicy(
+            max_sequences=4,
+            max_bytes=400,
+            pin_roles=frozenset({"manual-pin"}),
+        )
         backend = FakeBackend()
         coordinator = CacheCoordinator(policy, backend)
-        goal = key(60)
+        manual_pin = key(60)
         assistant = key(61)
         system = key(62)
         stable = key(63)
-        coordinator.admit_entry(goal, object(), role="goal", nbytes=100)
+        coordinator.admit_entry(manual_pin, object(), role="manual-pin", nbytes=100)
         coordinator.admit_entry(assistant, object(), role="assistant", nbytes=100)
         coordinator.admit_entry(system, object(), role="system", nbytes=100)
         coordinator.admit_entry(stable, object(), role="stable", nbytes=100)
         active = key(63, 1)
         coordinator.admit_entry(active, object(), role="active", nbytes=100)
         self.assertIsNone(policy.entry(assistant))
-        self.assertIsNotNone(policy.entry(goal))
+        self.assertIsNotNone(policy.entry(manual_pin))
         self.assertIsNotNone(policy.entry(stable))
         self.assertIsNotNone(policy.entry(active))
 

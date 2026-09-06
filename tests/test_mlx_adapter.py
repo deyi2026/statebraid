@@ -104,6 +104,29 @@ class MLXAdapterContractTest(unittest.TestCase):
         self.assertEqual(managed.activation_stats()["mode"], "statebraid")
         self.assertEqual(len(managed), 2)
 
+    def test_legacy_semantic_cache_types_do_not_gain_pin_authority(self):
+        managed = MLXStateBraidPromptCache(
+            FakePromptCache(), max_sequences=3, max_bytes=1_000
+        )
+        self.assertTrue(
+            managed.insert_cache("m", [10], [TinyKV(40)], cache_type="goal")
+        )
+        self.assertTrue(
+            managed.insert_cache("m", [11], [TinyKV(40)], cache_type="evidence")
+        )
+        self.assertTrue(managed.insert_stable_candidate("m", [12], [TinyKV(40)]))
+        self.assertTrue(
+            managed.insert_active_successor(
+                "m", [12, 1], [TinyKV(40)], predecessor_tokens=[12]
+            )
+        )
+
+        snapshot = managed.policy.capture_state()
+        self.assertTrue(all(not entry.pinned for entry in snapshot.entries.values()))
+        self.assertIsNone(managed.policy.entry(CacheKey.from_tokens("m", [10])))
+        self.assertIsNotNone(managed.policy.entry(CacheKey.from_tokens("m", [12])))
+        self.assertIsNotNone(managed.policy.entry(CacheKey.from_tokens("m", [12, 1])))
+
     def test_managed_cache_rejects_opaque_payload_without_nbytes(self):
         managed = MLXStateBraidPromptCache(
             FakePromptCache(), max_sequences=2, max_bytes=1_000
