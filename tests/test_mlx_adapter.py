@@ -3,7 +3,12 @@ import threading
 import unittest
 from typing import Any, cast
 
-from statebraid.adapters.mlx import MLXPromptCacheBackend, generation_safe_prompt_cache_hit
+import statebraid.adapters as adapters
+from statebraid.adapters.mlx import (
+    MLXPromptCacheBackend,
+    MLXStateBraidPromptCache,
+    generation_safe_prompt_cache_hit,
+)
 from statebraid.cache.policy import CacheCoordinator, CacheKey, WorkingSetPolicy
 
 
@@ -27,12 +32,27 @@ class FakeStorage:
 class FakePromptCache:
     def __init__(self):
         self.storage = FakeStorage()
+        self.rows = self.storage.rows
 
     def transactional_storage(self):
         return self.storage
 
+    def fetch_nearest_cache(self, model, tokens):
+        exact = self.rows.get((model, tuple(tokens)))
+        if exact is not None:
+            return exact[0], []
+        for end in range(len(tokens) - 1, 0, -1):
+            row = self.rows.get((model, tuple(tokens[:end])))
+            if row is not None:
+                return row[0], tokens[end:]
+        return None, tokens
+
 
 class MLXAdapterContractTest(unittest.TestCase):
+    def test_managed_cache_is_part_of_public_adapter_exports(self):
+        self.assertIn("MLXStateBraidPromptCache", adapters.__all__)
+        self.assertIs(adapters.MLXStateBraidPromptCache, MLXStateBraidPromptCache)
+
     def test_maps_cache_key_without_private_backend_access(self):
         cache = FakePromptCache()
         backend = MLXPromptCacheBackend(cache)
@@ -49,6 +69,47 @@ class MLXAdapterContractTest(unittest.TestCase):
     def test_rejects_cache_without_transactional_capability(self):
         with self.assertRaisesRegex(TypeError, "transactional_storage"):
             MLXPromptCacheBackend(object())
+
+    def test_managed_cache_assigns_hit_to_actual_prefix(self):
+        cache = FakePromptCache()
+        managed = MLXStateBraidPromptCache(
+            cache, max_sequences=4, max_bytes=1_000
+        )
+        payload = [TinyKV(40)]
+        self.assertTrue(managed.insert_cache("m", [1, 2], payload, cache_type="stable"))
+        got, rest = managed.fetch_nearest_cache("m", [1, 2, 3, 4])
+        self.assertIs(got, payload)
+        self.assertEqual(rest, [3, 4])
+        key = CacheKey.from_tokens("m", [1, 2])
+        entry = managed.policy.entry(key)
+        self.assertIsNotNone(entry)
+        if entry is None:
+            self.fail("stable entry disappeared")
+        self.assertEqual(entry.hits, 1)
+
+    def test_managed_cache_keeps_stable_and_active_lanes(self):
+        cache = FakePromptCache()
+        managed = MLXStateBraidPromptCache(
+            cache, max_sequences=2, max_bytes=1_000
+        )
+        stable = [TinyKV(40)]
+        active = [TinyKV(60)]
+        self.assertTrue(managed.insert_stable_candidate("m", [1, 2], stable))
+        self.assertTrue(
+            managed.insert_active_successor(
+                "m", [1, 2, 3], active, predecessor_tokens=[1, 2]
+            )
+        )
+        self.assertEqual(set(managed.stats_by_type()), {"stable", "active"})
+        self.assertEqual(managed.activation_stats()["mode"], "statebraid")
+        self.assertEqual(len(managed), 2)
+
+    def test_managed_cache_rejects_opaque_payload_without_nbytes(self):
+        managed = MLXStateBraidPromptCache(
+            FakePromptCache(), max_sequences=2, max_bytes=1_000
+        )
+        with self.assertRaisesRegex(TypeError, "nbytes"):
+            managed.insert_cache("m", [1], object())
 
 
 class TinyKV:

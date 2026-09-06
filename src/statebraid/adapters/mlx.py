@@ -11,7 +11,12 @@ from collections.abc import Sequence
 from typing import Any, Protocol, cast
 
 from statebraid.cache.generation import ensure_generation_safe_exact_hit
-from statebraid.cache.policy import CacheKey
+from statebraid.cache.policy import (
+    CacheCoordinator,
+    CacheKey,
+    WorkingSetPolicy,
+    matched_prefix_key,
+)
 
 
 class _MLXTransactionalStorage(Protocol):
@@ -60,6 +65,129 @@ class MLXPromptCacheBackend:
             payload,
             cache_type=role,
         )
+
+
+def _prompt_cache_nbytes(payload: object) -> int:
+    """Return the mechanical byte size of one MLX prompt-cache payload."""
+    try:
+        return sum(max(0, int(getattr(item, "nbytes"))) for item in cast(Any, payload))
+    except (TypeError, ValueError, AttributeError) as exc:
+        raise TypeError("MLX prompt-cache payload must expose per-entry nbytes") from exc
+
+
+class MLXStateBraidPromptCache:
+    """MLX prompt-cache facade with StateBraid as the sole policy authority.
+
+    Reads are delegated to the backend's ordinary nearest-prefix lookup. Exact
+    storage mutation goes through ``transactional_storage()`` so StateBraid never
+    reaches into MLX-LM private trie/LRU fields.
+    """
+
+    statebraid_policy_active = True
+
+    def __init__(
+        self,
+        prompt_cache: Any,
+        *,
+        max_sequences: int,
+        max_bytes: int,
+        transient_reserve: int | None = None,
+    ) -> None:
+        self._prompt_cache = prompt_cache
+        self.max_size = max(0, int(max_sequences))
+        self.max_bytes = max(0, int(max_bytes))
+        self.policy = WorkingSetPolicy(
+            max_sequences=self.max_size,
+            max_bytes=self.max_bytes,
+            transient_reserve=transient_reserve,
+        )
+        self.backend = MLXPromptCacheBackend(prompt_cache)
+        self.coordinator = CacheCoordinator(self.policy, self.backend)
+
+    def __len__(self) -> int:
+        return self.policy.n_sequences
+
+    @property
+    def nbytes(self) -> int:
+        return self.policy.nbytes
+
+    def fetch_nearest_cache(self, model: Any, tokens: list[int]):
+        cache, rest = self._prompt_cache.fetch_nearest_cache(model, tokens)
+        matched = matched_prefix_key(model, tokens, rest)
+        if cache is not None and matched is not None:
+            self.coordinator.observe_hit(matched)
+        return cache, rest
+
+    def insert_cache(
+        self,
+        model: Any,
+        tokens: list[int],
+        prompt_cache: object,
+        *,
+        cache_type: str = "assistant",
+    ) -> bool:
+        key = CacheKey.from_tokens(model, tokens)
+        return self.coordinator.admit_entry(
+            key,
+            prompt_cache,
+            role=cache_type,
+            nbytes=_prompt_cache_nbytes(prompt_cache),
+        )
+
+    def insert_stable_candidate(
+        self, model: Any, tokens: list[int], prompt_cache: object
+    ) -> bool:
+        key = CacheKey.from_tokens(model, tokens)
+        return self.coordinator.admit_stable_candidate(
+            key,
+            prompt_cache,
+            nbytes=_prompt_cache_nbytes(prompt_cache),
+        )
+
+    def insert_active_successor(
+        self,
+        model: Any,
+        tokens: list[int],
+        prompt_cache: object,
+        *,
+        predecessor_tokens: Sequence[int],
+    ) -> bool:
+        key = CacheKey.from_tokens(model, tokens)
+        predecessor = CacheKey.from_tokens(model, predecessor_tokens)
+        return self.coordinator.admit_entry(
+            key,
+            prompt_cache,
+            role="active",
+            nbytes=_prompt_cache_nbytes(prompt_cache),
+            predecessor=predecessor,
+        )
+
+    def trim_to(
+        self, *, n_sequences: int | None = None, n_bytes: int | None = None
+    ) -> bool:
+        return self.coordinator.trim_to(n_sequences=n_sequences, n_bytes=n_bytes)
+
+    def stats_by_type(self) -> dict[str, dict[str, int]]:
+        snapshot = self.policy.capture_state()
+        result: dict[str, dict[str, int]] = {}
+        for entry in snapshot.entries.values():
+            stats = result.setdefault(entry.role, {"n_sequences": 0, "n_bytes": 0})
+            stats["n_sequences"] += 1
+            stats["n_bytes"] += entry.nbytes
+        return result
+
+    def activation_stats(self) -> dict[str, int | str]:
+        snapshot = self.policy.capture_state()
+        return {
+            "mode": "statebraid",
+            "n_sequences": len(snapshot.entries),
+            "n_bytes": snapshot.nbytes,
+            "pin_evictions": snapshot.pin_evictions,
+            "pin_quota_evictions": snapshot.pin_quota_evictions,
+            "active_successor_evictions": snapshot.active_successor_evictions,
+            "stable_candidate_promotions": snapshot.stable_candidate_promotions,
+            "stable_candidate_rejections": snapshot.stable_candidate_rejections,
+        }
 
 
 def generation_safe_prompt_cache_hit(
