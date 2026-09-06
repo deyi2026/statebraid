@@ -27,6 +27,7 @@ logs/
 *.jsonl
 bench-results/
 results/
+bench/results/
 artifacts/
 
 # Local experiment/worktree material
