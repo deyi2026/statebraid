@@ -58,6 +58,8 @@ Phase 1.6 validates that adapter in a real MLX server behind an explicit opt-in 
 
 Phase 1.6.1 removes the remaining legacy semantic cache authority from the StateBraid path. Phase 1.6.2 then qualifies the hardened mechanical policy through an unchanged, immutable LFL snapshot: task/evidence/tool behavior and cache/new-prefill accounting match the Cognitive control, real exact-hit N-1 replay remains generation-safe, and the prior Cognitive runtime is restored after testing.
 
+Phase C freezes that qualified compute surface as **Compute Contract v0.1**. The freeze protects a minimum public API subset and black-box behavior invariants while still allowing compatible additions and internal optimization. Changes to cache identity, semantic blindness, stable/active lineage, hard budgets, transactional rollback, generation-safe exact hits, or required public entry points must follow the compatibility gates in [`docs/COMPUTE_FREEZE_V0_1.md`](docs/COMPUTE_FREEZE_V0_1.md).
+
 Phase 1.6/1.6.1 qualification is currently limited to the **Ornith/Qwen hybrid non-trimmable** path. Phase 1.6.1 also hardens the boundary to be semantic-blind: legacy agent labels such as `goal`, `rules`, `evidence`, or `identity` do not gain default pin/residency authority. StateBraid admission is based on token identity, observed reuse, exact lineage, and resource bounds. Generic trimmable-KV parity remains a separate future qualification.
 
 The research workspace remains a source of experimental evidence; experimental worktrees, local model files, logs, generated evidence, and unrelated upstream history stay outside this repository.
@@ -70,6 +72,7 @@ See:
 - [`docs/PHASE1_6_PRODUCTION_CANARY.md`](docs/PHASE1_6_PRODUCTION_CANARY.md)
 - [`docs/PHASE1_6_1_P0_HARDENING.md`](docs/PHASE1_6_1_P0_HARDENING.md)
 - [`docs/PHASE1_6_2_REAL_INTEGRATION_QUALIFICATION.md`](docs/PHASE1_6_2_REAL_INTEGRATION_QUALIFICATION.md)
+- [`docs/COMPUTE_FREEZE_V0_1.md`](docs/COMPUTE_FREEZE_V0_1.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`SECURITY.md`](SECURITY.md)

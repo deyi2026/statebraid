@@ -10,6 +10,7 @@
 - **DONE (Phase 1.6):** validate MLX production activation as an explicit, default-off canary and restore the prior runtime afterwards.
 - **DONE (Phase 1.6.1):** harden activation so StateBraid ignores legacy semantic cache tags, defaults to semantic-blind residency, and uses one generation-safety source of truth in StateBraid mode.
 - **DONE (Phase 1.6.2):** qualify the mechanical policy through an immutable, unchanged LFL agent path with equivalent completion/evidence/tool/cache behavior and real N-1 exact-hit safety.
+- **DONE (Phase C):** freeze the qualified compute surface as Compute Contract v0.1 with public-subset and black-box compatibility gates; keep activation default-off and CognitivePromptCache as rollback/control.
 - Add privacy and ownership tests for cross-session cache reuse.
 - Add one canonical agent benchmark suite that measures completion, duplicate work, evidence support, cache reuse, and new prefill.
 
