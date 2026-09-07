@@ -178,9 +178,70 @@ for the exact audited llama.cpp source. It still does **not** qualify namespace
 isolation, admission/residency authority, transactions, rollback, a production
 model/cache profile, or v0.1 production runtime support.
 
+## Apple real-GGUF qualification candidate
+
+After the tiny-model capability proof, the same exact audited llama.cpp source was
+qualified on Apple Silicon/macOS with a real portable GGUF. This is a materially
+stronger runtime evidence set, but it remains deliberately narrower than a blanket
+llama.cpp/GGUF support claim.
+
+Frozen model/source identity:
+
+- llama.cpp: `465e49b9cea78a68b9c244ffb48d0ee24a82873d`;
+- GGUF SHA256: `c6afa34954c5e3abcc492e49b70ec6abfec1054a470f353f732739f9214a10a1`;
+- GGUF size: `16,269,908,320` bytes;
+- architecture: `qwen35moe`;
+- quantization/model file type: Q4_K / file type 15;
+- reported parameters: 26.60 B;
+- qualification context: 65,536 tokens;
+- single slot, serial execution, `--cache-ram 0`, no context shift.
+
+The first pass used an Apple CPU/Accelerate build with Metal disabled and
+`--gpu-layers 0`. The exact prompt path reused 873 of 877 prompt tokens and replayed
+four prompt tokens before real generation. Shared-prefix divergence remained
+conservative rather than optimistic: a case with a true token LCP of 867 reused 361
+tokens, which is safe because StateBraid reports the prefix actually served by the
+backend instead of inferring the theoretical maximum. A-B-A reuse showed no stale
+suffix, progressive multi-turn extensions stayed bounded, slot erase reset reuse to
+zero, and the first fixed request after llama-server restart was cold.
+
+A second, strictly serial supplement rebuilt the same source with Metal enabled and
+offloaded 41/41 model layers to the Apple GPU. It repeated the same mechanical
+safety matrix, including exact-hit generation, divergence, erase, and restart-cold
+checks. The qualification conclusion depends on those correctness properties, not
+on throughput numbers.
+
+The live StateBraid adapter also rechecked both fail-closed boundaries:
+
+- any non-default trust domain is rejected before a completion request because the
+  current llama.cpp integration has no request-scoped namespace isolation;
+- an unavailable slot ID is rejected exactly rather than relying on llama.cpp's
+  modulo slot wrapping.
+
+An unchanged long-running-agent integration canary completed a real tool call and
+final answer on both CPU and Metal runs, providing end-to-end evidence in addition
+to the mechanical `cache_n` / `prompt_n` checks.
+
+This Apple L1 result is therefore classified as a **real-model runtime-qualification
+candidate evidence set**. It does not alter the committed descriptor:
+
+- `integration_level=partial`;
+- `runtime_qualified=false`;
+- `namespace_isolation=false`;
+- single-domain `local-default` only.
+
+The next promotion gate is native Linux x86_64 using the **same GGUF bytes**, the
+same audited llama.cpp source, and the same mechanical canary. Linux CPU is the
+primary cross-platform qualification; CUDA is a separate supplement after CPU PASS.
+Only after that evidence exists should a protected support-matrix PR decide whether
+llama.cpp becomes a second reference runtime. Broader GGUF/model profiles require
+their own qualification and must not be inferred from this one model.
+
 ## v0.1 support claim
 
 Phase 8 does **not** widen `SUPPORTED_SCOPE_V0_1.md`. The v0.1 reference-qualified
-runtime remains the exact MLX/Ornith profile. llama.cpp in Phase 8 is a Backend
-Contract v0.2 capability qualification unless and until a later release explicitly
-widens the production support matrix.
+runtime remains the exact MLX/Ornith profile. The later Apple real-GGUF L1 evidence
+raises llama.cpp from a tiny-model proof to a real-model **candidate** profile, but
+it intentionally leaves `runtime_qualified=false`. llama.cpp remains outside v0.1
+reference support unless and until a later protected release explicitly widens the
+production support matrix.

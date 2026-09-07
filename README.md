@@ -17,6 +17,37 @@ model prefix. The **less redo** half is an integration outcome: task, evidence a
 execution continuity remain the responsibility of the agent harness and the model,
 not a second semantic decision system inside StateBraid.
 
+## Runtime support status
+
+StateBraid separates **reference-qualified runtime support** from narrower backend
+qualification evidence. That distinction is intentional: a backend can prove that
+StateBraid's compute-continuity contract composes safely with it before every model,
+platform, isolation mode, and serving topology is claimed as production-supported.
+
+| Runtime / backend | Platform | Current status |
+| --- | --- | --- |
+| MLX-LM + StateBraid reference patch | Apple Silicon / macOS | **v0.1 reference-qualified** |
+| llama.cpp + real GGUF | Apple Silicon / macOS | **real-model qualification candidate**; CPU/Accelerate + Metal safety evidence PASS, while `runtime_qualified=false` remains deliberate |
+| llama.cpp + the same real GGUF | Linux x86_64 | **planned qualification**; deferred from the v0.1 release gate |
+| llama.cpp + CUDA | Linux x86_64 / NVIDIA | **planned supplement** after Linux CPU qualification |
+| vLLM / SGLang | Linux / GPU | **future Backend Contract integrations**, not current v0.1 runtime support |
+
+The Apple llama.cpp evidence used the exact audited upstream source
+`465e49b9cea78a68b9c244ffb48d0ee24a82873d` with a real 16.27 GB
+Qwen3.6-derived MoE GGUF. Both CPU/Accelerate and full-Metal-offload runs passed the
+cold/exact/prefix/divergence/A-B-A/multi-turn/erase/restart safety matrix, including
+real generation after exact reuse. This is materially stronger than the earlier
+tiny-model capability canary, but it is **not** a blanket claim that StateBraid
+supports every GGUF, every llama.cpp revision, or arbitrary multi-tenant llama-server
+deployments.
+
+In particular, the current public llama-server prompt cache does not expose the
+request-scoped trust namespace required for StateBraid's MLX-style multi-domain
+isolation. The current llama.cpp adapter therefore remains single-domain
+`local-default`, `integration_level=partial`, and `runtime_qualified=false` until a
+future support-matrix change is made through the normal protected qualification
+process.
+
 ## v0.1 product boundary
 
 StateBraid v0.1 is intentionally a **compute-continuity runtime**. Its supported
@@ -101,8 +132,10 @@ statebraid-doctor llama-cpp --url http://127.0.0.1:8080 --json
 ```
 
 The doctor fails closed unless both the public API surface and the exact audited
-source commit match. This remains a Backend Contract capability qualification,
-not v0.1 runtime qualification. See
+source commit match. The same exact source has now also passed an Apple/macOS
+real-GGUF qualification candidate run on CPU/Accelerate and Metal. That evidence
+still does not widen the v0.1 Supported Scope or change the committed
+`runtime_qualified=false` metadata. See
 [`docs/LLAMA_CPP_REFERENCE_V0_2.md`](https://github.com/deyi2026/statebraid/blob/main/docs/LLAMA_CPP_REFERENCE_V0_2.md).
 
 ## Non-goals for v0.1
@@ -235,6 +268,16 @@ The real model qualification is currently limited to
 `Ornith-1.5-35B-A3B-MLX`, a **Qwen3.6-derived hybrid/non-trimmable** cache path.
 That lineage is not a blanket Qwen-family support claim. Generic trimmable-KV
 runtime parity remains a separate future qualification.
+
+Separately, the llama.cpp adapter has now passed a real-model Apple qualification
+candidate using a portable Q4_K GGUF on both CPU/Accelerate and Metal. The next
+cross-platform gate is Linux x86_64 with the **same GGUF bytes**, the same audited
+llama.cpp source, and the same mechanical canary. A CUDA supplement follows only
+after the Linux CPU qualification. If those gates pass, a later protected PR may
+promote llama.cpp to a second reference runtime; until then, the v0.1 support matrix
+remains MLX-only. Broader GGUF/model profiles and additional backends such as vLLM
+or SGLang require their own capability and runtime qualification rather than an
+implicit support claim.
 
 The research workspace remains a source of experimental evidence; experimental
 worktrees, local model files, logs, generated evidence, and unrelated upstream
