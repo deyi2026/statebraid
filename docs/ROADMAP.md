@@ -55,6 +55,18 @@
   prefix 42/89 -> exact-safe 88/89; deterministic/package/privacy/fresh-install
   gates, protected PR checks, and post-merge main CI all pass. The v0.1 production
   runtime scope remains MLX-only.
+- **DONE (Boundary Freeze / post-Phase 8):** freeze Harness ↔ StateBraid
+  Integration Contract v0.1; backend/model selection remains Harness/gateway-owned,
+  semantic task/evidence/checkpoint/tool/completion fields are mechanically excluded,
+  and legacy `cache_tag` has no StateBraid admission/residency authority.
+- **DONE (Backend observation semantics):** require every `prefix_lookup` adapter to
+  declare passive vs execution-coupled observation and backend-state mutation risk;
+  require generation-safety declarations to include a narrow qualification profile.
+- **CANCELLED AS PRODUCT SURFACE (Phase 9 service draft):** do not merge the generic
+  `/v1/chat/completions` registry/router/proxy experiment into StateBraid. Retain
+  only trusted ownership→trust-domain derivation and an already-selected-backend
+  capability gate as library primitives. A future runnable gateway belongs in an
+  external harness/serving layer or companion example.
 - Qualify generic trimmable-KV behavior separately before claiming parity beyond
   the exact v0.1 reference profile.
 

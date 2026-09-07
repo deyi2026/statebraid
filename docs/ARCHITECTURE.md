@@ -129,6 +129,21 @@ platform, concurrency profile, trust-domain conditions, and unqualified modes ar
 defined in [`SUPPORTED_SCOPE_V0_1.md`](SUPPORTED_SCOPE_V0_1.md). Adapter
 compatibility alone does not widen that support claim.
 
+## Harness integration boundary
+
+The cross-layer API is frozen separately as Harness ↔ StateBraid Integration
+Contract v0.1. Harness input is restricted to an already-selected backend identity,
+trusted trust-domain/ownership identity, exact token identity, and mechanical
+resource constraints. StateBraid output is restricted to actual reuse,
+admission/eviction, generation-safe replay, and capacity facts.
+
+Backend selection is external. StateBraid does not own a generic chat proxy,
+provider router, retry/fallback engine, or semantic model-selection policy. The
+unmerged Phase 9 service experiment was intentionally cut back to reusable
+trust-domain derivation plus an already-selected-backend compatibility gate. See
+[`HARNESS_INTEGRATION_CONTRACT_V0_1.md`](HARNESS_INTEGRATION_CONTRACT_V0_1.md) and
+[`PHASE9_SERVICE_BOUNDARY_DECISION.md`](PHASE9_SERVICE_BOUNDARY_DECISION.md).
+
 ## Phase 1 implementation boundary
 
 The first product extraction deliberately separates policy from storage:

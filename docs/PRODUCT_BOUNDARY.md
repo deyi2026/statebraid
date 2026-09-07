@@ -118,6 +118,21 @@ StateBraid should not require an LFL-specific Python dependency. The current LFL
 integration is a qualification client that verifies compute changes do not alter
 observable agent behavior.
 
+The Harness or an external serving gateway also owns **backend/model selection**.
+StateBraid may check whether an already-selected backend satisfies required
+mechanical capabilities, but it must not inspect task/message semantics to route or
+rank backends. The normative cross-layer schema is
+[`HARNESS_INTEGRATION_CONTRACT_V0_1.md`](HARNESS_INTEGRATION_CONTRACT_V0_1.md).
+
+A generic chat/inference gateway is outside the StateBraid product boundary. An
+experimental Phase 9 service/proxy draft was reviewed and intentionally not adopted
+as a product surface; the decision is recorded in
+[`PHASE9_SERVICE_BOUNDARY_DECISION.md`](PHASE9_SERVICE_BOUNDARY_DECISION.md).
+
+Legacy semantic `cache_tag` values never grant StateBraid admission/residency
+authority. A StateBraid-enabled serving path must remain mechanically blind to
+labels such as `goal`, `evidence`, `identity`, `rules`, and `summary`.
+
 ## Validated v0.1 scope
 
 The current real serving qualification covers

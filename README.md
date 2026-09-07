@@ -53,6 +53,17 @@ whether to continue or answer.
 
 StateBraid and an agent harness should integrate through a narrow serving/API
 boundary rather than share a second semantic control plane.
+ The normative cross-layer boundary is now machine-readable as
+**Harness ↔ StateBraid Integration Contract v0.1**: the Harness/gateway chooses the
+backend and supplies only trusted ownership/trust-domain, exact token identity and
+mechanical limits; StateBraid returns factual compute-continuity results only.
+
+StateBraid deliberately does **not** ship a generic chat/inference gateway. A Phase
+9 `/v1/chat/completions` service experiment was reviewed but kept out of the product
+surface because backend routing/proxy ownership would create pressure toward auth,
+retry/fallback, model selection, load balancing and serving-platform scope. The two
+mechanical pieces worth keeping -- trusted ownership → trust domain and compatibility
+checking for an already-selected backend -- live under `statebraid.integration`.
 
 ### Backend Contract v0.2
 
@@ -73,6 +84,7 @@ Inspect the machine-readable contract with:
 
 ```bash
 statebraid-doctor contract --json
+statebraid-doctor integration --json
 ```
 
 See [`docs/BACKEND_CONTRACT_V0_2.md`](docs/BACKEND_CONTRACT_V0_2.md).
@@ -221,6 +233,8 @@ See:
 
 - [`docs/PRODUCT_BOUNDARY.md`](docs/PRODUCT_BOUNDARY.md)
 - [`docs/BACKEND_CONTRACT_V0_2.md`](docs/BACKEND_CONTRACT_V0_2.md)
+- [`docs/HARNESS_INTEGRATION_CONTRACT_V0_1.md`](docs/HARNESS_INTEGRATION_CONTRACT_V0_1.md)
+- [`docs/PHASE9_SERVICE_BOUNDARY_DECISION.md`](docs/PHASE9_SERVICE_BOUNDARY_DECISION.md)
 - [`docs/LLAMA_CPP_REFERENCE_V0_2.md`](docs/LLAMA_CPP_REFERENCE_V0_2.md)
 - [`docs/PHASE1_COMPUTE_CONTINUITY.md`](docs/PHASE1_COMPUTE_CONTINUITY.md)
 - [`docs/PHASE1_5_MLX_STORAGE_ADAPTER.md`](docs/PHASE1_5_MLX_STORAGE_ADAPTER.md)

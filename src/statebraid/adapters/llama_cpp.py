@@ -18,7 +18,10 @@ from urllib import request
 from statebraid.backend import (
     BackendCapability,
     BackendDescriptor,
+    BackendObservationProfile,
+    BackendQualificationProfile,
     LookupObservation,
+    ObservationMode,
     UnsupportedBackendCapability,
 )
 from statebraid.cache.namespace import DEFAULT_TRUST_DOMAIN, validate_trust_domain
@@ -35,6 +38,26 @@ LLAMA_CPP_BACKEND_DESCRIPTOR = BackendDescriptor(
             BackendCapability.HIT_ATTRIBUTION,
             BackendCapability.GENERATION_SAFETY,
         }
+    ),
+    observation_profile=BackendObservationProfile(
+        mode=ObservationMode.EXECUTION_COUPLED,
+        may_mutate_backend_state=True,
+        notes=(
+            "Actual-prefix evidence is obtained through POST /completion with bounded generation.",
+            "The observation may change llama-server slot/cache state and is not a pure lookup.",
+        ),
+    ),
+    qualification_profile=BackendQualificationProfile(
+        source_revision=LLAMA_CPP_REFERENCE_SHA,
+        observation_path="llama-server /props + /slots preflight, then /completion timings.cache_n",
+        cache_mode="single-slot canary; shared RAM prompt-cache isolation not qualified",
+        concurrency_profile="single slot / serial request canary",
+        model_class="ggml-org stories260K.gguf tiny server-test model",
+        runtime_qualified=False,
+        notes=(
+            "Capability qualification is not production runtime qualification.",
+            "Shared RAM cache, hybrid/SWA, speculative decode, multi-slot concurrency and arbitrary models are not implied.",
+        ),
     ),
     notes=(
         "Public llama-server completion timings expose the actually served/reused prompt prefix.",

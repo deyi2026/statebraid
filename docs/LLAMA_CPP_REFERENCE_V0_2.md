@@ -54,6 +54,25 @@ upstream evidence includes cases where a restore HTTP response succeeds without
 subsequent useful KV reuse, especially across restart or on hybrid/SWA checkpoint
 paths. StateBraid does not treat an HTTP 200 as proof of compute rollback.
 
+## Observation semantics
+
+The Backend Contract descriptor now makes an important property explicit:
+llama.cpp reuse observation is `execution_coupled`, not a side-effect-free prefix
+query. `LlamaCppHTTPAdapter.lookup()` obtains factual reuse only by issuing a
+bounded `/completion` request and reading `timings.cache_n`. That request may
+change slot/cache state, so the descriptor also publishes
+`may_mutate_backend_state=true`.
+
+Callers must not use the historical `prefix_lookup` capability name to infer a
+pure read. The capability remains for compatibility; the attached observation
+profile is the authority for side-effect semantics.
+
+The descriptor also carries a qualification profile pinned to the exact audited
+source, public observation path, single-slot cache mode/concurrency, tiny server
+test model class, and `runtime_qualified=false`. Thus `generation_safety` means
+"qualified for this evidence profile", not "all llama.cpp models/cache modes are
+production-qualified".
+
 ## Capability verdict
 
 | Backend Contract v0.2 capability | Phase 8 llama.cpp verdict | Evidence / reason |

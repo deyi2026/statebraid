@@ -13,7 +13,10 @@ from typing import Any, Protocol, cast
 from statebraid.backend import (
     BackendCapability,
     BackendDescriptor,
+    BackendObservationProfile,
+    BackendQualificationProfile,
     LookupObservation,
+    ObservationMode,
 )
 from statebraid.cache.generation import ensure_generation_safe_exact_hit
 from statebraid.cache.policy import (
@@ -36,6 +39,26 @@ MLX_BACKEND_DESCRIPTOR = BackendDescriptor(
             BackendCapability.HIT_ATTRIBUTION,
             BackendCapability.GENERATION_SAFETY,
         }
+    ),
+    observation_profile=BackendObservationProfile(
+        mode=ObservationMode.PASSIVE,
+        may_mutate_backend_state=True,
+        notes=(
+            "Nearest-prefix evidence does not require model execution.",
+            "Conservatively marked mutating because backend lookup may update cache/LRU accounting.",
+        ),
+    ),
+    qualification_profile=BackendQualificationProfile(
+        source_revision="mlx-lm@6d21ce4b065a2e163fa6de76a9936c61aeb5784a + StateBraid reference patch",
+        observation_path="patched MLX prompt-cache fetch_nearest_cache + transactional_storage",
+        cache_mode="StateBraid exclusive policy; hybrid/non-trimmable reference KV",
+        concurrency_profile="prompt=1, decode=1, single-model reference profile",
+        model_class="Ornith-1.5-35B-A3B-MLX (Qwen3.6-derived reference)",
+        runtime_qualified=True,
+        notes=(
+            "Qualification applies only to the exact v0.1 supported-scope profile.",
+            "Generic trimmable KV, quantized KV, speculative decode and broader concurrency remain unqualified.",
+        ),
     ),
     notes=(
         "Capability declaration describes adapter mechanics only; runtime qualification remains narrower.",

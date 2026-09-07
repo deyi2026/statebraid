@@ -11,6 +11,7 @@ from statebraid.adapters.mlx import MLX_BACKEND_DESCRIPTOR
 from statebraid.backend import BACKEND_CONTRACT_VERSION, BACKEND_OWNS, STATEBRAID_OWNS
 from statebraid.compat.llama_cpp import probe_llama_cpp_server
 from statebraid.compat.mlx import probe_mlx_backend
+from statebraid.integration import integration_contract_metadata
 from statebraid.support import support_scope
 
 
@@ -30,6 +31,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "contract", help="show the backend capability contract"
     )
     contract.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    integration = subparsers.add_parser(
+        "integration", help="show the Harness <-> StateBraid boundary"
+    )
+    integration.add_argument(
+        "--json", action="store_true", help="emit machine-readable JSON"
+    )
     scope = subparsers.add_parser("scope", help="show the v0.1 support boundary")
     scope.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     return parser
@@ -58,6 +65,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"known adapter: {descriptor.name} ({descriptor.integration_level})")
                 for item in descriptor.to_dict()["capabilities"]:
                     print(f"capability[{descriptor.name}]: {item}")
+        return 0
+
+    if args.backend == "integration":
+        report = integration_contract_metadata()
+        if args.json:
+            print(json.dumps(report, sort_keys=True))
+        else:
+            print(
+                "Harness <-> StateBraid integration contract: "
+                f"{report['integration_contract_version']}"
+            )
+            print("backend selection: external harness/gateway")
+            print("StateBraid role: mechanical compatibility + compute facts")
+            for item in report["forbidden_semantic_fields"]:
+                print(f"forbidden semantic field: {item}")
         return 0
 
     if args.backend == "llama-cpp":

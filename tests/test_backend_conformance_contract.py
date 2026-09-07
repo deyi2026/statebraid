@@ -9,8 +9,11 @@ from statebraid.adapters.mlx import (
 from statebraid.backend import (
     BackendCapability,
     BackendDescriptor,
+    BackendObservationProfile,
+    BackendQualificationProfile,
     ConformanceStatus,
     LookupObservation,
+    ObservationMode,
     run_backend_conformance,
 )
 from statebraid.cache import CacheKey, make_cache_namespace
@@ -193,6 +196,18 @@ class ObserveGenerationConformanceDriver(MLXConformanceDriver):
                 BackendCapability.HIT_ATTRIBUTION,
                 BackendCapability.GENERATION_SAFETY,
             }
+        ),
+        observation_profile=BackendObservationProfile(
+            mode=ObservationMode.PASSIVE,
+            may_mutate_backend_state=True,
+        ),
+        qualification_profile=BackendQualificationProfile(
+            source_revision="synthetic-test",
+            observation_path="synthetic lookup",
+            cache_mode="synthetic",
+            concurrency_profile="serial",
+            model_class="synthetic",
+            runtime_qualified=False,
         ),
     )
 

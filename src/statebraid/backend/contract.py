@@ -60,6 +60,85 @@ _CAPABILITY_DEPENDENCIES: dict[BackendCapability, frozenset[BackendCapability]] 
 }
 
 
+
+
+class ObservationMode(str, Enum):
+    """How a backend obtains actual-prefix reuse evidence."""
+
+    PASSIVE = "passive"
+    EXECUTION_COUPLED = "execution_coupled"
+
+
+@dataclass(frozen=True)
+class BackendObservationProfile:
+    """Side-effect semantics for actual-prefix observation.
+
+    ``PASSIVE`` means no model execution is required. It does *not* imply a
+    side-effect-free backend call: implementations may still update LRU/hit
+    accounting, which must be declared through ``may_mutate_backend_state``.
+    ``EXECUTION_COUPLED`` means the evidence is available only through a bounded
+    serving/execution request and therefore must never be presented as a pure
+    lookup.
+    """
+
+    mode: ObservationMode
+    may_mutate_backend_state: bool
+    notes: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "mode", ObservationMode(self.mode))
+        if not isinstance(self.may_mutate_backend_state, bool):
+            raise TypeError("may_mutate_backend_state must be bool")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "mode": self.mode.value,
+            "may_mutate_backend_state": self.may_mutate_backend_state,
+            "notes": list(self.notes),
+        }
+
+
+@dataclass(frozen=True)
+class BackendQualificationProfile:
+    """Evidence scope attached to a backend capability declaration.
+
+    This profile narrows the evidence behind capability claims. ``runtime_qualified``
+    applies only to this exact profile and never promotes an entire backend family.
+    """
+
+    source_revision: str
+    observation_path: str
+    cache_mode: str
+    concurrency_profile: str
+    model_class: str
+    runtime_qualified: bool
+    notes: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        for label, value in (
+            ("source_revision", self.source_revision),
+            ("observation_path", self.observation_path),
+            ("cache_mode", self.cache_mode),
+            ("concurrency_profile", self.concurrency_profile),
+            ("model_class", self.model_class),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"qualification {label} must be a non-empty string")
+        if not isinstance(self.runtime_qualified, bool):
+            raise TypeError("runtime_qualified must be bool")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "source_revision": self.source_revision,
+            "observation_path": self.observation_path,
+            "cache_mode": self.cache_mode,
+            "concurrency_profile": self.concurrency_profile,
+            "model_class": self.model_class,
+            "runtime_qualified": self.runtime_qualified,
+            "notes": list(self.notes),
+        }
+
+
 class UnsupportedBackendCapability(RuntimeError):
     """Raised when a caller requires a capability the backend did not declare."""
 
@@ -75,6 +154,8 @@ class BackendDescriptor:
     name: str
     adapter: str
     capabilities: frozenset[BackendCapability]
+    observation_profile: BackendObservationProfile | None = None
+    qualification_profile: BackendQualificationProfile | None = None
     contract_version: str = BACKEND_CONTRACT_VERSION
     notes: tuple[str, ...] = ()
 
@@ -94,6 +175,17 @@ class BackendDescriptor:
                 raise ValueError(
                     f"{capability.value} requires undeclared capabilities: {missing_text}"
                 )
+        if BackendCapability.PREFIX_LOOKUP in normalized and self.observation_profile is None:
+            raise ValueError(
+                "prefix_lookup requires explicit observation_profile semantics"
+            )
+        if (
+            BackendCapability.GENERATION_SAFETY in normalized
+            and self.qualification_profile is None
+        ):
+            raise ValueError(
+                "generation_safety requires an explicit qualification_profile"
+            )
 
     def supports(self, *capabilities: BackendCapability) -> bool:
         return all(BackendCapability(item) in self.capabilities for item in capabilities)
@@ -140,6 +232,16 @@ class BackendDescriptor:
             "contract_version": self.contract_version,
             "integration_level": self.integration_level,
             "capabilities": sorted(item.value for item in self.capabilities),
+            "observation_profile": (
+                None
+                if self.observation_profile is None
+                else self.observation_profile.to_dict()
+            ),
+            "qualification_profile": (
+                None
+                if self.qualification_profile is None
+                else self.qualification_profile.to_dict()
+            ),
             "notes": list(self.notes),
         }
 
@@ -206,6 +308,12 @@ class LookupObservation:
 
 @runtime_checkable
 class PrefixLookupBackend(Protocol):
+    """Compatibility name for actual-prefix observation.
+
+    Callers must inspect ``descriptor.observation_profile`` before assuming the
+    operation is passive or side-effect free.
+    """
+
     descriptor: BackendDescriptor
 
     def lookup(
@@ -240,7 +348,10 @@ __all__ = [
     "STATEBRAID_OWNS",
     "BackendCapability",
     "BackendDescriptor",
+    "BackendObservationProfile",
+    "BackendQualificationProfile",
     "LookupObservation",
+    "ObservationMode",
     "PrefixLookupBackend",
     "TransactionalMutationBackend",
     "UnsupportedBackendCapability",
