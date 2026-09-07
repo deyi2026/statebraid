@@ -51,9 +51,10 @@
 - **DONE (Phase 8):** audit exact llama.cpp upstream `465e49b9`, add a public-HTTP
   partial adapter with no upstream patch, and prove actual-prefix hit attribution
   plus generation-safe exact reuse without claiming namespace/admission/transaction
-  authority. The exact-source tiny runtime canary passed cold 0 -> prefix 37/58 ->
-  exact-safe 57/58; deterministic, package, privacy, and fresh-install gates are
-  required before the candidate may enter protected main.
+  authority. The final adapter exact-source tiny runtime canary passed cold 0/37 ->
+  prefix 37/58 -> exact-safe 57/58; deterministic/package/privacy/fresh-install
+  gates, protected PR checks, and post-merge main CI all pass. The v0.1 production
+  runtime scope remains MLX-only.
 - Qualify generic trimmable-KV behavior separately before claiming parity beyond
   the exact v0.1 reference profile.
 
