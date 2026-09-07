@@ -29,7 +29,7 @@ from .llama_cpp import (
     llama_cpp_source_commit,
 )
 
-LLAMA_CPP_MANAGED_REFERENCE_SHA = "0f75058ccb5c4e0d7bd029d37678435eb0d2458c"
+LLAMA_CPP_MANAGED_REFERENCE_SHA = "04329aacab48f91c79cd33490c2b4b33b29a7ef5"
 
 LLAMA_CPP_MANAGED_STORAGE_DESCRIPTOR = BackendDescriptor(
     name="llama.cpp-managed-storage-m1",
@@ -270,12 +270,25 @@ class LlamaCppManagedHTTPAdapter(LlamaCppHTTPAdapter):
             raise ValueError("llama.cpp managed clear returned invalid n_cleared")
         return n_cleared
 
-    def capture_current_state(self) -> LlamaCppManagedStateHandle:
+    def capture_current_state(
+        self, expected_tokens: Sequence[int]
+    ) -> LlamaCppManagedStateHandle:
+        tokens: list[int] = []
+        for value in expected_tokens:
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise TypeError("llama.cpp managed capture tokens must be integers")
+            if value < -(1 << 31) or value > (1 << 31) - 1:
+                raise ValueError("llama.cpp managed capture token is out of int32 range")
+            tokens.append(value)
+        if not tokens:
+            raise ValueError("llama.cpp managed capture requires non-empty expected tokens")
+
         response = self._post_managed(
             {
                 "action": "capture",
                 "epoch": self.managed_epoch,
                 "id_slot": self.id_slot,
+                "expected_tokens": tokens,
             }
         )
         if response.get("id_slot") != self.id_slot:
@@ -289,7 +302,7 @@ class LlamaCppManagedHTTPAdapter(LlamaCppHTTPAdapter):
             raise ValueError("llama.cpp managed capture returned invalid n_tokens")
         if not isinstance(nbytes, int) or isinstance(nbytes, bool) or nbytes <= 0:
             raise ValueError("llama.cpp managed capture returned invalid n_bytes")
-        return LlamaCppManagedStateHandle(
+        state = LlamaCppManagedStateHandle(
             backend_identity=self.backend_identity,
             epoch=self.managed_epoch,
             handle=handle,
@@ -297,6 +310,15 @@ class LlamaCppManagedHTTPAdapter(LlamaCppHTTPAdapter):
             n_tokens=n_tokens,
             nbytes=nbytes,
         )
+        if n_tokens != len(tokens):
+            # The final M1 server binds capture to exact expected token IDs, so
+            # inconsistent accounting means this remote state cannot safely be
+            # assigned to the caller's CacheKey. Retire it before failing.
+            self.drop_state(state)
+            raise ValueError(
+                "llama.cpp managed capture token count does not match expected tokens"
+            )
+        return state
 
     def _require_state_binding(self, state: LlamaCppManagedStateHandle) -> None:
         if state.backend_identity != self.backend_identity:
@@ -443,7 +465,7 @@ class LlamaCppManagedStorageBackend:
         # the backend beyond the logical working-set budget.
         if self._pending_drops:
             self.flush_drops()
-        state = self.adapter.capture_current_state()
+        state = self.adapter.capture_current_state(key.tokens)
         try:
             self._require_state(key, state)
         except Exception:
