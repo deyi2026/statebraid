@@ -15,6 +15,21 @@ class MLXCompatibilityProbeTest(unittest.TestCase):
         self.assertFalse(report.compatible)
         self.assertIn("not importable", report.issues[0])
 
+    def test_import_time_backend_error_is_fail_closed(self):
+        def importer(_name):
+            raise AttributeError("simulated incompatible mlx import")
+
+        report = probe_mlx_backend(
+            importer=importer, version_reader=lambda: "0.31.1"
+        )
+        self.assertTrue(report.installed)
+        self.assertFalse(report.compatible)
+        self.assertIn("AttributeError", report.issues[0])
+        self.assertEqual(report.backend_contract_version, "0.2")
+        self.assertIn("transactional_mutation", report.declared_capabilities)
+        self.assertEqual(report.integration_level, "generation-safe-managed")
+
+
     def test_stock_like_backend_without_markers_is_rejected(self):
         class Cache:
             pass

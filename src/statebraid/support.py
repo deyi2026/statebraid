@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from statebraid.backend import BACKEND_CONTRACT_VERSION, BACKEND_OWNS, STATEBRAID_OWNS
 from statebraid.cache.namespace import DEFAULT_TRUST_DOMAIN, MAX_TRUST_DOMAIN_BYTES
 from statebraid.integrations.mlx import (
     REFERENCE_MLX_BASE_SHA,
@@ -70,6 +71,9 @@ def support_scope() -> dict[str, Any]:
             "backend_neutral": True,
             "mlx_import_required": False,
             "runtime_qualification_is_narrower_than_core_api": True,
+            "backend_contract_version": BACKEND_CONTRACT_VERSION,
+            "statebraid_owns": list(STATEBRAID_OWNS),
+            "backend_owns": list(BACKEND_OWNS),
         },
         "reference_runtime": {
             "backend": REFERENCE_BACKEND,

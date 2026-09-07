@@ -9,6 +9,17 @@ No unreleased user-facing changes are recorded yet.
 
 ## 0.1.0rc1 - 2026-09-07
 
+### Backend contract
+
+- add Backend Contract v0.2 with graded capability declarations and dependency
+  validation;
+- add reusable backend conformance for namespace isolation, actual-prefix hits,
+  stable/active residency, capacity, rollback, and generation-safe exact reuse;
+- declare and qualify the existing MLX adapter against the new mechanical suite
+  without widening the narrower v0.1 runtime support scope;
+- make MLX compatibility probing fail closed on import-time backend exceptions.
+
+
 This is the first release-candidate metadata state. It is **not** a public final
 release and this preparation phase does not create a Git tag or GitHub Release.
 

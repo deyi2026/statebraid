@@ -40,10 +40,17 @@
 - Keep MLX as the first-class backend while preserving a backend-neutral core.
 - **DONE (Phase 1.5):** define and verify a narrow transactional MLX storage adapter without depending on private trie internals.
 - **Started in Phase 1.6:** expose bounded factual cache-policy telemetry needed to verify activation and prefix reuse.
-- **Started (Distribution Boundary):** versioned capability reporting now covers
-  exact transactional storage, server activation, and request-scoped namespace
-  support. Extend reporting to generic trimmability, generation-safe replay,
-  sequence capacity, and byte accounting before broader backend claims.
+- **DONE (Phase 7 / Backend Contract v0.2):** define a capability-based backend
+  contract for namespace isolation, prefix lookup, admission/residency,
+  transaction/rollback, actual-prefix hit attribution, and generation-safe exact
+  reuse; add reusable PASS/SKIP/FAIL conformance and machine-readable ownership.
+- **DONE (Phase 7 MLX proof):** the existing MLX adapter declares the full
+  generation-safe-managed capability set and passes the deterministic conformance
+  suite without changing Compute Contract v0.1 behavior or widening v0.1 runtime
+  qualification.
+- **NEXT (Phase 8):** use llama.cpp as the second, structurally different backend
+  proof. Prefer public server/slot/cache capabilities; add only the smallest
+  auditable patch if a required mechanical capability is absent.
 - Qualify generic trimmable-KV behavior separately before claiming parity beyond
   the exact v0.1 reference profile.
 

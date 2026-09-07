@@ -10,12 +10,37 @@ import importlib
 from collections.abc import Sequence
 from typing import Any, Protocol, cast
 
+from statebraid.backend import (
+    BackendCapability,
+    BackendDescriptor,
+    LookupObservation,
+)
 from statebraid.cache.generation import ensure_generation_safe_exact_hit
 from statebraid.cache.policy import (
     CacheCoordinator,
     CacheKey,
     WorkingSetPolicy,
-    matched_prefix_key,
+)
+
+
+MLX_BACKEND_DESCRIPTOR = BackendDescriptor(
+    name="mlx-lm",
+    adapter="statebraid.adapters.mlx",
+    capabilities=frozenset(
+        {
+            BackendCapability.NAMESPACE_ISOLATION,
+            BackendCapability.PREFIX_LOOKUP,
+            BackendCapability.ADMISSION_RESIDENCY,
+            BackendCapability.TRANSACTIONAL_MUTATION,
+            BackendCapability.ROLLBACK,
+            BackendCapability.HIT_ATTRIBUTION,
+            BackendCapability.GENERATION_SAFETY,
+        }
+    ),
+    notes=(
+        "Capability declaration describes adapter mechanics only; runtime qualification remains narrower.",
+        "MLX-LM owns model execution and physical KV storage/transport.",
+    ),
 )
 
 
@@ -37,7 +62,10 @@ class MLXPromptCacheBackend:
     StateBraid coordinator while active.
     """
 
+    descriptor = MLX_BACKEND_DESCRIPTOR
+
     def __init__(self, prompt_cache: Any):
+        self._prompt_cache = prompt_cache
         factory = getattr(prompt_cache, "transactional_storage", None)
         if factory is None or not callable(factory):
             raise TypeError(
@@ -66,6 +94,14 @@ class MLXPromptCacheBackend:
             cache_type=role,
         )
 
+    def lookup(self, namespace: Any, tokens: Sequence[int]) -> LookupObservation:
+        payload, remaining = self._prompt_cache.fetch_nearest_cache(
+            namespace, list(tokens)
+        )
+        return LookupObservation.from_backend_result(
+            namespace, tokens, payload, remaining
+        )
+
 
 def _prompt_cache_nbytes(payload: object) -> int:
     """Return the mechanical byte size of one MLX prompt-cache payload."""
@@ -87,6 +123,7 @@ class MLXStateBraidPromptCache:
     """
 
     statebraid_policy_active = True
+    descriptor = MLX_BACKEND_DESCRIPTOR
 
     def __init__(
         self,
@@ -115,11 +152,10 @@ class MLXStateBraidPromptCache:
         return self.policy.nbytes
 
     def fetch_nearest_cache(self, model: Any, tokens: list[int]):
-        cache, rest = self._prompt_cache.fetch_nearest_cache(model, tokens)
-        matched = matched_prefix_key(model, tokens, rest)
-        if cache is not None and matched is not None:
-            self.coordinator.observe_hit(matched)
-        return cache, rest
+        observation = self.backend.lookup(model, tokens)
+        if observation.payload is not None and observation.matched_key is not None:
+            self.coordinator.observe_hit(observation.matched_key)
+        return observation.payload, list(observation.remaining)
 
     def insert_cache(
         self,
