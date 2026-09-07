@@ -98,5 +98,6 @@ This decision is a reason **not** to add, in the next phase:
 - KV restart persistence without a correctness model;
 - distributed KV / quantized KV / multi-model serving merely to expand a matrix.
 
-The next backend should be chosen from real deployment demand after the contracts
-and current LFL integration remain clean.
+The next backend should be chosen from real deployment demand only while the
+contracts and the latest explicitly qualified **committed** LFL integration boundary
+remain clean; an unqualified live working tree does not widen that claim.

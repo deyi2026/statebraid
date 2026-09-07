@@ -30,6 +30,23 @@ operator, or external serving gateway chooses the backend first. StateBraid may 
 `check_backend_compatibility()` against that already-selected backend descriptor;
 it does not rank providers, inspect the prompt, or choose a model.
 
+### Identity provenance invariant
+
+The shape checks in this contract do not prove semantic provenance. Therefore:
+
+- `backend_identity` must come from a trusted operator/configured serving-backend
+  identity after backend selection has already happened outside StateBraid. It must
+  not be synthesized by StateBraid from prompt/task meaning or used by StateBraid
+  to perform semantic model routing.
+- `trust_domain` must come from a trusted authentication/ownership boundary (or
+  from the mechanical trusted-ownership derivation below). StateBraid validates
+  its bounded identity shape and isolation use; it does not authenticate the
+  caller or infer tenant/task meaning from the token.
+
+A syntactically valid identity string can still be misused by a faulty Harness.
+Preventing that misuse is an integration/deployment responsibility, not an excuse
+for StateBraid to inspect task semantics.
+
 ## Allowed StateBraid → harness outputs
 
 `HarnessComputeFacts` may expose only factual compute continuity information:
@@ -144,7 +161,15 @@ Those are **regression signals**, not StateBraid-owned state. The expected resul
 semantic equivalence in Harness behavior while only mechanical compute telemetry
 changes.
 
-A future LFL read-only requalification should use the current Continuity Kernel
+The current committed read-only requalification used LFL
+`22039c087adcdd60f0beb6f68848a3258e4262b5` and passed deterministic/static
+continuity, cache/history/wire and full committed unit/static gates. A current-main
+real-model StateBraid ON/OFF A/B was **not rerun**. Historical real-model ON/OFF
+evidence remains scoped to immutable LFL snapshot
+`5c8e8bc3344f27a2a2586d2e65c4a317353089a3`; it must not be relabeled as evidence
+for `22039c0`. The live LFL dirty worktree is outside both claims.
+
+Future requalification should continue to use committed Continuity Kernel state
 without modifying LFL or enabling held model-authored working-state producers merely
 for cache performance.
 

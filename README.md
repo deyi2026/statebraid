@@ -6,9 +6,10 @@ StateBraid is built around one practical goal:
 
 > Less recompute. Less redo.
 
-The source tree is currently at **`0.1.0rc1` release-candidate metadata**. This is
-not yet a formal public `v0.1.0` release: the final release-readiness audit and tag
-gate remain separate steps.
+The v0.1 distribution version is **`0.1.0`**. Source metadata, protected-main
+verification, and the immutable `v0.1.0` tag are separate release gates; preparing
+the final version string does not by itself create a release or widen the supported
+runtime scope.
 
 StateBraid directly owns the **less recompute** half of that promise. It preserves
 mechanical serving state so long-running agents do not repeatedly rebuild the same

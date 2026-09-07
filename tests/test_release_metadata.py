@@ -31,7 +31,7 @@ class ReleaseMetadataContractTest(unittest.TestCase):
         requires = self.pyproject["build-system"]["requires"]
         self.assertIn("setuptools>=77.0.3", requires)
 
-    def test_project_metadata_is_release_candidate_complete(self) -> None:
+    def test_project_metadata_is_final_v0_1_complete(self) -> None:
         self.assertEqual(self.project["version"], __version__)
         self.assertEqual(self.project["readme"], "README.md")
         self.assertEqual(self.project["requires-python"], ">=3.11")
@@ -57,14 +57,24 @@ class ReleaseMetadataContractTest(unittest.TestCase):
         self.assertIn("StateBraid itself is distributed under the Apache License 2.0", notices)
         self.assertNotIn("has not yet been selected", notices)
 
-    def test_release_docs_freeze_rc_and_tag_policy(self) -> None:
+    def test_release_docs_freeze_final_version_and_tag_policy(self) -> None:
         process = (ROOT / "docs" / "RELEASE_PROCESS.md").read_text(encoding="utf-8")
         checklist = (ROOT / "docs" / "RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-        self.assertIn("v0.1.0rc1", process)
-        self.assertIn("without creating a tag or GitHub Release", process)
+        self.assertEqual(self.project["version"], "0.1.0")
+        self.assertIn("final example: `v0.1.0`", process)
+        self.assertIn("before any\ntag or GitHub Release exists", process)
         self.assertIn("do **not** create the formal v0.1", checklist)
-        self.assertIn("## 0.1.0rc1 - 2026-09-07", changelog)
+        self.assertIn("## 0.1.0 - 2026-09-07", changelog)
+
+    def test_final_lfl_qualification_wording_keeps_real_and_static_evidence_distinct(self) -> None:
+        contract = (ROOT / "docs" / "HARNESS_INTEGRATION_CONTRACT_V0_1.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("22039c087adcdd60f0beb6f68848a3258e4262b5", contract)
+        self.assertIn("5c8e8bc3344f27a2a2586d2e65c4a317353089a3", contract)
+        self.assertIn("real-model StateBraid ON/OFF A/B was **not rerun**", contract)
+        self.assertIn("live LFL dirty worktree is outside", contract)
 
 
 if __name__ == "__main__":

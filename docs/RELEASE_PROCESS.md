@@ -51,9 +51,10 @@ A release tag may be created only from a protected-`main` commit whose required 
 checks are successful and whose package artifacts were rebuilt from that exact
 commit. Tags are immutable: do not delete/recreate or force-move a published tag.
 
-This release-preparation phase intentionally advances source metadata to
-`0.1.0rc1` **without creating a tag or GitHub Release**. Tagging is deferred until
-the final release-readiness audit explicitly passes.
+The final-preparation commit may advance source metadata to `0.1.0` **before any
+tag or GitHub Release exists**. That metadata change is not itself a release.
+Tagging remains deferred until the exact protected-main commit has successful
+required CI, rebuilt artifacts, and a final fresh-clone release-readiness audit.
 
 ## Artifact policy
 

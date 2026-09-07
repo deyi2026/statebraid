@@ -7,7 +7,7 @@ release tags use the same version prefixed with `v`.
 
 No unreleased user-facing changes are recorded yet.
 
-## 0.1.0rc1 - 2026-09-07
+## 0.1.0 - 2026-09-07
 
 ### Harness integration boundary
 
@@ -43,8 +43,9 @@ No unreleased user-facing changes are recorded yet.
 - make MLX compatibility probing fail closed on import-time backend exceptions.
 
 
-This is the first release-candidate metadata state. It is **not** a public final
-release and this preparation phase does not create a Git tag or GitHub Release.
+This is the first StateBraid v0.1 release line. Advancing distribution metadata to
+`0.1.0` does not widen Compute Contract v0.1, Supported Scope v0.1, or any backend
+runtime qualification; tag and release creation remain separate protected gates.
 
 ### Added
 
@@ -74,3 +75,10 @@ release and this preparation phase does not create a Git tag or GitHub Release.
 The v0.1 real serving qualification remains intentionally narrower than the core
 API. See `docs/SUPPORTED_SCOPE_V0_1.md` for the exact Apple Silicon/macOS,
 MLX-LM, Ornith, cache-shape, concurrency and trust-domain limits.
+
+Historical real-model LFL StateBraid ON/OFF evidence remains bound to immutable
+LFL snapshot `5c8e8bc3344f27a2a2586d2e65c4a317353089a3`. Current committed LFL main
+`22039c087adcdd60f0beb6f68848a3258e4262b5` passed deterministic/static
+requalification after its six Harness durability commits; a current-main
+real-model StateBraid ON/OFF A/B was **not rerun**. The LFL live dirty worktree is
+outside that qualification.

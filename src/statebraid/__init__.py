@@ -4,7 +4,7 @@ from statebraid.backend import BACKEND_CONTRACT_VERSION
 from statebraid.integration import HARNESS_INTEGRATION_CONTRACT_VERSION
 from statebraid.support import SUPPORT_SCOPE_VERSION
 
-__version__ = "0.1.0rc1"
+__version__ = "0.1.0"
 COMPUTE_CONTRACT_VERSION = "0.1"
 
 __all__ = [
