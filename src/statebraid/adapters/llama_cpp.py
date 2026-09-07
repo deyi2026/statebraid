@@ -9,6 +9,7 @@ only the reuse mechanics that can be verified from public completion timings.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Hashable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -23,6 +24,7 @@ from statebraid.backend import (
 from statebraid.cache.namespace import DEFAULT_TRUST_DOMAIN, validate_trust_domain
 
 LLAMA_CPP_REFERENCE_SHA = "465e49b9cea78a68b9c244ffb48d0ee24a82873d"
+_BUILD_COMMIT_RE = re.compile(r"(?:^|[- ])([0-9a-f]{7,40})(?:$|[ )])")
 
 LLAMA_CPP_BACKEND_DESCRIPTOR = BackendDescriptor(
     name="llama.cpp",
@@ -129,6 +131,28 @@ def llama_cpp_cache_namespace(backend_identity: str) -> tuple[str, str, str]:
     return ("llama.cpp", backend_identity.rstrip("/"), DEFAULT_TRUST_DOMAIN)
 
 
+def llama_cpp_source_commit(build_info: str | None) -> str | None:
+    """Extract the commit field from llama-server's public ``build_info``."""
+
+    if not build_info:
+        return None
+    matches = _BUILD_COMMIT_RE.findall(build_info.lower())
+    return matches[-1] if matches else None
+
+
+def llama_cpp_reference_source_match(build_info: str | None) -> bool:
+    """Return whether ``build_info`` identifies the exact audited source."""
+
+    source_commit = llama_cpp_source_commit(build_info)
+    return bool(
+        source_commit
+        and (
+            LLAMA_CPP_REFERENCE_SHA.startswith(source_commit)
+            or source_commit.startswith(LLAMA_CPP_REFERENCE_SHA)
+        )
+    )
+
+
 def normalize_llama_cpp_reuse(
     *,
     backend_identity: str,
@@ -208,15 +232,49 @@ class LlamaCppHTTPAdapter:
             raise ValueError("llama.cpp /slots did not return a slot list")
         return payload
 
-    def _require_exact_slot(self) -> None:
+    def _require_reference_source(self) -> int:
+        props = self.transport.get_json("/props")
+        if not isinstance(props, Mapping):
+            raise UnsupportedBackendCapability(
+                "llama.cpp /props did not return an object; source qualification "
+                "cannot be established"
+            )
+        build_info = props.get("build_info")
+        if not isinstance(build_info, str) or not llama_cpp_reference_source_match(
+            build_info
+        ):
+            source_commit = llama_cpp_source_commit(
+                build_info if isinstance(build_info, str) else None
+            )
+            raise UnsupportedBackendCapability(
+                "running llama.cpp source is not the audited Phase 8 reference: "
+                f"expected {LLAMA_CPP_REFERENCE_SHA}, found {source_commit or 'unknown'}"
+            )
+        total_slots = props.get("total_slots")
+        if (
+            not isinstance(total_slots, int)
+            or isinstance(total_slots, bool)
+            or total_slots <= 0
+        ):
+            raise UnsupportedBackendCapability(
+                "llama.cpp /props lacks a positive integer total_slots"
+            )
+        return total_slots
+
+    def _require_exact_slot(self, *, total_slots: int) -> None:
         # llama.cpp currently wraps out-of-range id_slot values modulo n_slots.
         # StateBraid rejects that ambiguity and requires the requested ID itself.
+        slots = self.slots()
         slot_ids = {
             item.get("id")
-            for item in self.slots()
+            for item in slots
             if isinstance(item.get("id"), int)
             and not isinstance(item.get("id"), bool)
         }
+        if len(slot_ids) != len(slots) or len(slot_ids) != total_slots:
+            raise UnsupportedBackendCapability(
+                "llama.cpp /props total_slots does not match the valid /slots entries"
+            )
         if self.id_slot not in slot_ids:
             raise ValueError(
                 f"llama.cpp id_slot {self.id_slot} is not present in /slots; "
@@ -229,7 +287,8 @@ class LlamaCppHTTPAdapter:
         tokens: Sequence[int],
     ) -> LookupObservation:
         self._require_namespace(namespace)
-        self._require_exact_slot()
+        total_slots = self._require_reference_source()
+        self._require_exact_slot(total_slots=total_slots)
         prompt_tokens = [int(token) for token in tokens]
         if not prompt_tokens:
             raise ValueError("llama.cpp reuse observation requires a non-empty prompt")
@@ -276,5 +335,7 @@ __all__ = [
     "LlamaCppReuseStats",
     "UrllibJSONTransport",
     "llama_cpp_cache_namespace",
+    "llama_cpp_reference_source_match",
+    "llama_cpp_source_commit",
     "normalize_llama_cpp_reuse",
 ]

@@ -15,8 +15,9 @@ No unreleased user-facing changes are recorded yet.
   public-HTTP partial adapter that observes `cache_n`, validates exact slot IDs,
   fails closed on non-default trust domains, and preserves llama.cpp ownership of
   scheduling/KV storage;
-- distinguish llama.cpp public-API compatibility from exact audited source-commit
-  qualification via `/props` build metadata;
+- bind both llama.cpp doctor and direct execution adapter to the exact audited
+  source commit via `/props`, and require `/props.total_slots` to agree with the
+  concrete `/slots` surface before any completion probe;
 - clarify that Backend Contract v0.2 lookup evidence may be execution-coupled and
   remove the MLX-shaped requirement to expose an unsafe pre-replay exact hit;
 - add Backend Contract v0.2 with graded capability declarations and dependency

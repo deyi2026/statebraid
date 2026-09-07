@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import asdict, dataclass
 from typing import Any, Mapping
 
@@ -11,11 +10,10 @@ from statebraid.adapters.llama_cpp import (
     LLAMA_CPP_REFERENCE_SHA,
     JSONTransport,
     UrllibJSONTransport,
+    llama_cpp_reference_source_match,
+    llama_cpp_source_commit,
 )
 from statebraid.backend import BACKEND_CONTRACT_VERSION, capability_values
-
-_BUILD_COMMIT_RE = re.compile(r"(?:^|[- ])([0-9a-f]{7,40})(?:$|[ )])")
-
 
 @dataclass(frozen=True)
 class LlamaCppCompatibilityReport:
@@ -46,17 +44,6 @@ class LlamaCppCompatibilityReport:
         payload = asdict(self)
         payload["reference_qualified"] = self.reference_qualified
         return payload
-
-
-def _extract_commit(build_info: str | None) -> str | None:
-    if not build_info:
-        return None
-    matches = _BUILD_COMMIT_RE.findall(build_info.lower())
-    if not matches:
-        return None
-    # build_info may contain a decimal build number; the commit is conventionally
-    # the final hex field. Prefer the final match.
-    return matches[-1]
 
 
 def probe_llama_cpp_server(
@@ -130,14 +117,8 @@ def probe_llama_cpp_server(
         and total_slots_raw > 0
         else None
     )
-    source_commit = _extract_commit(build_info)
-    reference_match = bool(
-        source_commit
-        and (
-            LLAMA_CPP_REFERENCE_SHA.startswith(source_commit)
-            or source_commit.startswith(LLAMA_CPP_REFERENCE_SHA)
-        )
-    )
+    source_commit = llama_cpp_source_commit(build_info)
+    reference_match = llama_cpp_reference_source_match(build_info)
 
     issues: list[str] = []
     compatible = True

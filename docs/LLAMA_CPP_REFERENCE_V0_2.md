@@ -22,6 +22,13 @@ but the doctor fails closed until that source revision is separately audited.
 Reachability, source commit, and exact reference match remain separate fields so
 operators can distinguish an offline server from an unaudited one.
 
+The execution adapter enforces the same source boundary independently of the
+doctor. Before every `/completion` observation it reads `/props`, requires the
+audited commit and a positive `total_slots`, then reads `/slots` and requires the
+valid slot-ID count to agree with `total_slots`. Only after those checks pass may a
+model request be sent. This prevents callers from bypassing source qualification by
+constructing `LlamaCppHTTPAdapter` directly.
+
 ## Public surface used
 
 The adapter relies on these public behaviors from the audited source:
