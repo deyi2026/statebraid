@@ -28,7 +28,8 @@ surface is:
 - transactional cache mutation and rollback;
 - generation-safe exact-hit reuse, including the validated N-1 hybrid path;
 - factual cache telemetry for integration and qualification;
-- a narrow MLX adapter as the first backend integration.
+- a narrow MLX adapter as the first managed backend integration;
+- a public-HTTP llama.cpp adapter as the second, deliberately partial backend proof.
 
 StateBraid does not decide which evidence matters, whether a task is complete, or
 how an interrupted agent run should continue. Semantic labels from an agent harness
@@ -75,6 +76,21 @@ statebraid-doctor contract --json
 ```
 
 See [`docs/BACKEND_CONTRACT_V0_2.md`](docs/BACKEND_CONTRACT_V0_2.md).
+
+The second backend proof is llama.cpp. Against audited upstream
+`465e49b9cea78a68b9c244ffb48d0ee24a82873d`, StateBraid uses only public
+llama-server timing/slot/property APIs. It declares actual-prefix observation, hit
+attribution, and audited exact-reuse generation safety, while **not** claiming trust-domain
+isolation, cache admission/residency authority, transactions, or rollback.
+
+```bash
+statebraid-doctor llama-cpp --url http://127.0.0.1:8080 --json
+```
+
+The doctor fails closed unless both the public API surface and the exact audited
+source commit match. This remains a Backend Contract capability qualification,
+not v0.1 runtime qualification. See
+[`docs/LLAMA_CPP_REFERENCE_V0_2.md`](docs/LLAMA_CPP_REFERENCE_V0_2.md).
 
 ## Non-goals for v0.1
 
@@ -205,6 +221,7 @@ See:
 
 - [`docs/PRODUCT_BOUNDARY.md`](docs/PRODUCT_BOUNDARY.md)
 - [`docs/BACKEND_CONTRACT_V0_2.md`](docs/BACKEND_CONTRACT_V0_2.md)
+- [`docs/LLAMA_CPP_REFERENCE_V0_2.md`](docs/LLAMA_CPP_REFERENCE_V0_2.md)
 - [`docs/PHASE1_COMPUTE_CONTINUITY.md`](docs/PHASE1_COMPUTE_CONTINUITY.md)
 - [`docs/PHASE1_5_MLX_STORAGE_ADAPTER.md`](docs/PHASE1_5_MLX_STORAGE_ADAPTER.md)
 - [`docs/PHASE1_6_PRODUCTION_CANARY.md`](docs/PHASE1_6_PRODUCTION_CANARY.md)

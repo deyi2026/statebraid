@@ -6,8 +6,10 @@ import argparse
 import json
 from collections.abc import Sequence
 
+from statebraid.adapters.llama_cpp import LLAMA_CPP_BACKEND_DESCRIPTOR
 from statebraid.adapters.mlx import MLX_BACKEND_DESCRIPTOR
 from statebraid.backend import BACKEND_CONTRACT_VERSION, BACKEND_OWNS, STATEBRAID_OWNS
+from statebraid.compat.llama_cpp import probe_llama_cpp_server
 from statebraid.compat.mlx import probe_mlx_backend
 from statebraid.support import support_scope
 
@@ -17,6 +19,13 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="backend", required=True)
     mlx = subparsers.add_parser("mlx", help="check the installed MLX backend")
     mlx.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    llama = subparsers.add_parser(
+        "llama-cpp", help="check a running llama-server public API"
+    )
+    llama.add_argument(
+        "--url", default="http://127.0.0.1:8080", help="llama-server base URL"
+    )
+    llama.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     contract = subparsers.add_parser(
         "contract", help="show the backend capability contract"
     )
@@ -33,7 +42,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             "backend_contract_version": BACKEND_CONTRACT_VERSION,
             "statebraid_owns": list(STATEBRAID_OWNS),
             "backend_owns": list(BACKEND_OWNS),
-            "known_adapters": [MLX_BACKEND_DESCRIPTOR.to_dict()],
+            "known_adapters": [
+                MLX_BACKEND_DESCRIPTOR.to_dict(),
+                LLAMA_CPP_BACKEND_DESCRIPTOR.to_dict(),
+            ],
             "qualification_note": (
                 "capability declaration does not widen the separately versioned support scope"
             ),
@@ -42,10 +54,35 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(report, sort_keys=True))
         else:
             print(f"StateBraid backend contract: {BACKEND_CONTRACT_VERSION}")
-            print(f"known adapter: mlx-lm ({MLX_BACKEND_DESCRIPTOR.integration_level})")
-            for item in MLX_BACKEND_DESCRIPTOR.to_dict()["capabilities"]:
-                print(f"capability: {item}")
+            for descriptor in (MLX_BACKEND_DESCRIPTOR, LLAMA_CPP_BACKEND_DESCRIPTOR):
+                print(f"known adapter: {descriptor.name} ({descriptor.integration_level})")
+                for item in descriptor.to_dict()["capabilities"]:
+                    print(f"capability[{descriptor.name}]: {item}")
         return 0
+
+    if args.backend == "llama-cpp":
+        report = probe_llama_cpp_server(args.url)
+        if args.json:
+            print(json.dumps(report.to_dict(), sort_keys=True))
+        else:
+            verdict = "compatible" if report.compatible else "incompatible"
+            print(f"llama.cpp capability profile: {verdict}")
+            print(f"audited reference: {report.reference_sha}")
+            print(f"running source: {report.source_commit or 'unknown'}")
+            print(
+                "reference source match: "
+                f"{'yes' if report.reference_source_match else 'no'}"
+            )
+            print(f"slots endpoint: {'yes' if report.slots_endpoint else 'no'}")
+            print(f"slot count: {report.slot_count}")
+            print(f"reported total slots: {report.total_slots or 'unknown'}")
+            print("namespace isolation: no")
+            print("single-domain only: yes")
+            print("runtime qualified: no")
+            print(f"integration level: {report.integration_level}")
+            for issue in report.issues:
+                print(f"issue: {issue}")
+        return 0 if report.compatible else 2
 
     if args.backend == "scope":
         scope = support_scope()

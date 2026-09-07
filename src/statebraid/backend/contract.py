@@ -146,7 +146,12 @@ class BackendDescriptor:
 
 @dataclass(frozen=True)
 class LookupObservation:
-    """Normalized nearest-prefix lookup result with exact hit attribution."""
+    """Normalized actual-prefix reuse observation.
+
+    A backend may provide this before execution or as execution-coupled factual
+    telemetry.  The observation always represents the prefix that was actually
+    reusable/served, not a speculative semantic estimate.
+    """
 
     namespace: Hashable
     prompt: tuple[int, ...]

@@ -48,9 +48,12 @@
   generation-safe-managed capability set and passes the deterministic conformance
   suite without changing Compute Contract v0.1 behavior or widening v0.1 runtime
   qualification.
-- **NEXT (Phase 8):** use llama.cpp as the second, structurally different backend
-  proof. Prefer public server/slot/cache capabilities; add only the smallest
-  auditable patch if a required mechanical capability is absent.
+- **DONE (Phase 8):** audit exact llama.cpp upstream `465e49b9`, add a public-HTTP
+  partial adapter with no upstream patch, and prove actual-prefix hit attribution
+  plus generation-safe exact reuse without claiming namespace/admission/transaction
+  authority. The exact-source tiny runtime canary passed cold 0 -> prefix 37/58 ->
+  exact-safe 57/58; deterministic, package, privacy, and fresh-install gates are
+  required before the candidate may enter protected main.
 - Qualify generic trimmable-KV behavior separately before claiming parity beyond
   the exact v0.1 reference profile.
 

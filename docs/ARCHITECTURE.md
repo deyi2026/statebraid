@@ -115,6 +115,14 @@ Backend capability declaration and runtime qualification are separate facts. A n
 backend can pass a subset of v0.2 conformance without becoming a supported v0.1
 runtime profile. See [`BACKEND_CONTRACT_V0_2.md`](BACKEND_CONTRACT_V0_2.md).
 
+Phase 8 demonstrates that separation with llama.cpp: the public HTTP adapter is an
+execution-coupled observer of `cache_n` and the audited exact-hit invariant that
+at least one prompt token remains for evaluation (or more is safely recomputed).
+llama.cpp retains
+slot scheduling and KV authority, so StateBraid does not emulate MLX transactional
+storage on top of it. Because the current shared prompt cache lacks a request trust
+namespace, multi-domain cache isolation remains unsupported for this adapter.
+
 The current runtime support claim is intentionally narrower than this
 backend-neutral architecture. The exact qualified MLX base, model/cache shape,
 platform, concurrency profile, trust-domain conditions, and unqualified modes are
