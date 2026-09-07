@@ -164,7 +164,7 @@ executed through the facade's atomic
 
 The stable entry remained at zero policy hits after cold execution, capture, and
 restore; it advanced to one hit only after the completion response reported
-`cache_n = 433`.
+`cache_n = 442`.
 
 After admitting both stable and active states, `trim_to(n_sequences=1)` reduced
 the physical server store to one handle. The final server-reported payload size
