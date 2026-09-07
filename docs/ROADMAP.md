@@ -56,6 +56,18 @@
   prefix 42/89 -> exact-safe 88/89; deterministic/package/privacy/fresh-install
   gates, protected PR checks, and post-merge main CI all pass. The v0.1 production
   runtime scope remains MLX-only.
+- **DONE (Apple llama.cpp real-GGUF L1):** on the same audited llama.cpp source,
+  exercise a real 16.27 GB Qwen3.6-derived MoE GGUF on Apple Silicon/macOS first with
+  CPU/Accelerate and then with full Metal offload. Cold/exact/generation-safe,
+  extension/divergence, A-B-A stale-state, multi-turn, erase, restart, fail-closed,
+  and unchanged-agent integration checks all pass. This is a **runtime-qualification
+  candidate evidence set**, not an automatic v0.1 support-matrix expansion;
+  `runtime_qualified=false` and single-domain llama.cpp boundaries remain intact.
+- **PLANNED / DEFERRED (Linux llama.cpp real-GGUF L2):** repeat the same qualification
+  on native Linux x86_64 using the **same GGUF bytes**, exact audited llama.cpp SHA,
+  and the same mechanical canary. CPU qualification is the primary cross-platform
+  gate; CUDA is a separate serial supplement after CPU PASS. L2 is deliberately not
+  a v0.1 release blocker.
 - **DONE (Boundary Freeze / post-Phase 8):** freeze Harness ↔ StateBraid
   Integration Contract v0.1; backend/model selection remains Harness/gateway-owned,
   semantic task/evidence/checkpoint/tool/completion fields are mechanically excluded,
@@ -70,6 +82,13 @@
   external harness/serving layer or companion example.
 - Qualify generic trimmable-KV behavior separately before claiming parity beyond
   the exact v0.1 reference profile.
+- After Linux x86_64 L2, decide through a narrow protected PR whether llama.cpp is
+  promoted to a second reference runtime. Do not infer blanket support for arbitrary
+  GGUF files, llama.cpp revisions, multi-tenant shared-cache deployments, or model
+  families from one qualified profile.
+- Add further backend adapters such as vLLM or SGLang only when their public serving
+  surfaces can satisfy a useful subset of Backend Contract v0.2 without moving model
+  execution, routing, batching, or KV transport ownership into StateBraid.
 
 ## v0.3 -- multi-session compute hardening
 
