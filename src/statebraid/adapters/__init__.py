@@ -14,6 +14,7 @@ from .llama_cpp import (
 from .llama_cpp_managed import (
     LLAMA_CPP_MANAGED_BACKEND_DESCRIPTOR,
     LLAMA_CPP_MANAGED_REFERENCE_SHA,
+    LLAMA_CPP_MANAGED_STORAGE_DESCRIPTOR,
     LlamaCppManagedHTTPAdapter,
     LlamaCppManagedRestore,
     LlamaCppManagedStateHandle,
@@ -47,6 +48,7 @@ __all__ = [
     "LLAMA_CPP_BACKEND_DESCRIPTOR",
     "LLAMA_CPP_MANAGED_REFERENCE_SHA",
     "LLAMA_CPP_MANAGED_BACKEND_DESCRIPTOR",
+    "LLAMA_CPP_MANAGED_STORAGE_DESCRIPTOR",
     "MLX_BACKEND_DESCRIPTOR",
     "MLXPromptCacheBackend",
     "MLXStateBraidPromptCache",
