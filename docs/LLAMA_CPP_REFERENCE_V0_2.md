@@ -139,13 +139,13 @@ Observed public-API evidence:
 
 | Step | Prompt tokens | `cache_n` / StateBraid matched prefix | Result |
 | --- | ---: | ---: | --- |
-| cold base prompt | 37 | 0 | no false hit |
-| same-prefix extended prompt | 58 | 37 | exact 37-token prefix reuse |
-| exact repeat of 58-token prompt | 58 | 57 | generation-safe N-1 reuse |
+| cold base prompt | 42 | 0 | no false hit |
+| same-prefix extended prompt | 89 | 42 | exact 42-token prefix reuse |
+| exact repeat of 89-token prompt | 89 | 88 | generation-safe N-1 reuse |
 
 `GET /props` reported source commit `465e49b`; the compatibility probe therefore
 returned `reference_source_match=true` and `reference_qualified=true`. The server
-log independently showed the exact-repeat guard reducing `n_past` from 58 to 57
+log independently showed the exact-repeat guard reducing `n_past` from 89 to 88
 and evaluating one prompt token.
 
 Two negative boundaries were exercised against the live server as well:
