@@ -1,0 +1,108 @@
+name: StateBraid CI
+
+on:
+  push:
+    branches:
+      - main
+      - "phaseE/**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: statebraid-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: tests / py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Unit tests
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+      - name: Compile source and tests
+        run: python -m compileall -q src tests bench scripts
+      - name: Install package without backend dependencies
+        run: python -m pip install --no-deps .
+      - name: Installed support-scope smoke
+        run: statebraid-doctor scope --json
+
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Install Pyright
+        run: python -m pip install pyright==1.1.411
+      - name: Pyright
+        env:
+          PYTHONPATH: src
+        run: pyright src tests bench scripts
+      - name: Compile all checked Python
+        run: python -m compileall -q src tests bench scripts
+
+  contracts:
+    name: contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Frozen compute and product contracts
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m unittest discover -s tests -p 'test_*contract.py' -v
+          python -m unittest discover -s tests -p 'test_supported_scope.py' -v
+          python -m unittest discover -s tests -p 'test_distribution_reference.py' -v
+          python -m unittest discover -s tests -p 'test_cache_namespace.py' -v
+      - name: Machine-readable scope
+        env:
+          PYTHONPATH: src
+        run: python -m statebraid.doctor scope --json
+
+  privacy:
+    name: privacy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Source contract and privacy scan
+        env:
+          PYTHONPATH: src
+        run: python scripts/ci/verify_release_gates.py source
+
+  package:
+    name: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Install build frontend
+        run: python -m pip install build==1.4.2
+      - name: Build wheel and sdist
+        run: python -m build
+      - name: Verify package contents
+        env:
+          PYTHONPATH: src
+        run: python scripts/ci/verify_release_gates.py artifacts dist
