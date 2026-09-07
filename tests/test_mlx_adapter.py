@@ -10,6 +10,7 @@ from statebraid.adapters.mlx import (
     generation_safe_prompt_cache_hit,
 )
 from statebraid.cache.policy import CacheCoordinator, CacheKey, WorkingSetPolicy
+from statebraid.cache import make_cache_namespace
 
 
 class FakeStorage:
@@ -86,6 +87,43 @@ class MLXAdapterContractTest(unittest.TestCase):
         if entry is None:
             self.fail("stable entry disappeared")
         self.assertEqual(entry.hits, 1)
+
+    def test_managed_cache_isolates_same_tokens_across_trust_domains(self):
+        cache = FakePromptCache()
+        managed = MLXStateBraidPromptCache(
+            cache, max_sequences=4, max_bytes=1_000
+        )
+        tenant_a = make_cache_namespace("m", "tenant-a")
+        tenant_b = make_cache_namespace("m", "tenant-b")
+        payload = [TinyKV(40)]
+
+        self.assertTrue(
+            managed.insert_cache(tenant_a, [1, 2, 3], payload, cache_type="stable")
+        )
+        self.assertEqual(managed.fetch_nearest_cache(tenant_b, [1, 2, 3]), (None, [1, 2, 3]))
+        got, rest = managed.fetch_nearest_cache(tenant_a, [1, 2, 3])
+        self.assertIs(got, payload)
+        self.assertEqual(rest, [])
+
+        a_entry = managed.policy.entry(CacheKey.from_tokens(tenant_a, [1, 2, 3]))
+        b_entry = managed.policy.entry(CacheKey.from_tokens(tenant_b, [1, 2, 3]))
+        self.assertIsNotNone(a_entry)
+        self.assertIsNone(b_entry)
+        if a_entry is None:
+            self.fail("tenant-a cache entry disappeared")
+        self.assertEqual(a_entry.hits, 1)
+
+    def test_managed_cache_reuses_same_domain_namespace(self):
+        managed = MLXStateBraidPromptCache(
+            FakePromptCache(), max_sequences=4, max_bytes=1_000
+        )
+        first = make_cache_namespace("m", "tenant-a")
+        same = make_cache_namespace("m", "tenant-a")
+        payload = [TinyKV(40)]
+        self.assertTrue(managed.insert_cache(first, [7, 8], payload, cache_type="stable"))
+        got, rest = managed.fetch_nearest_cache(same, [7, 8, 9])
+        self.assertIs(got, payload)
+        self.assertEqual(rest, [9])
 
     def test_managed_cache_keeps_stable_and_active_lanes(self):
         cache = FakePromptCache()
@@ -229,6 +267,30 @@ class MLXRealStorageParityTest(unittest.TestCase):
         self.assertEqual(policy.n_sequences, len(cache))
         self.assertEqual(policy.nbytes, cache.nbytes)
         self.assertLessEqual(policy.n_sequences, 6)
+
+    def test_real_mlx_storage_isolates_same_tokens_by_trust_domain(self):
+        cache = self.cache_type(max_size=1, max_bytes=1)
+        managed = MLXStateBraidPromptCache(
+            cache, max_sequences=4, max_bytes=500
+        )
+        tenant_a = make_cache_namespace("m", "tenant-a")
+        tenant_b = make_cache_namespace("m", "tenant-b")
+        payload = [TinyKV(50)]
+
+        self.assertTrue(
+            managed.insert_cache(tenant_a, [1, 2, 3], payload, cache_type="stable")
+        )
+        self.assertEqual(
+            managed.fetch_nearest_cache(tenant_b, [1, 2, 3]),
+            (None, [1, 2, 3]),
+        )
+        a_cache, a_rest = managed.fetch_nearest_cache(tenant_a, [1, 2, 3])
+        self.assertIsNotNone(a_cache)
+        self.assertEqual(a_rest, [])
+
+        snapshot = managed.policy.capture_state()
+        self.assertIn(CacheKey.from_tokens(tenant_a, [1, 2, 3]), snapshot.entries)
+        self.assertNotIn(CacheKey.from_tokens(tenant_b, [1, 2, 3]), snapshot.entries)
 
     def test_real_mlx_storage_rolls_back_after_failed_successor_insert(self):
         cache = self.cache_type(max_size=1, max_bytes=1)

@@ -9,7 +9,10 @@
 - **DONE (Phase 1.6.2):** qualify the mechanical policy through an immutable, unchanged LFL client path with equivalent completion/evidence/tool/cache behavior and real N-1 exact-hit safety.
 - **DONE (Phase C):** freeze the qualified compute surface as Compute Contract v0.1 with public-subset and black-box compatibility gates; keep activation default-off and CognitivePromptCache as rollback/control.
 - **DONE (Phase D):** align product/architecture/package/security documentation to a compute-only StateBraid boundary; agent task/evidence/execution continuity remains harness-owned.
-- Add explicit cross-session namespace/trust-domain privacy tests.
+- **DONE (Trust-Domain Boundary):** add explicit request-scoped cache namespaces,
+  cross-domain isolation tests, hostile-input validation, and a real single-model
+  A/B/A canary; authenticated tenant-to-namespace assignment remains deployment
+  infrastructure rather than StateBraid semantics.
 - Maintain one canonical integration benchmark that detects agent-behavior regressions while reporting cache reuse, new prefill, worker health and factual compute telemetry.
 
 ## v0.2 -- backend abstraction and capability reporting
@@ -23,7 +26,8 @@
 
 ## v0.3 -- multi-session compute hardening
 
-- Explicit cache namespaces / trust domains.
+- **Started:** explicit cache namespaces / trust domains are implemented for the
+  qualified MLX path; broader backend parity remains future work.
 - Session ownership and cache-salt-equivalent protection where needed.
 - Crash/restart recovery for compute/cache state where correctness can be proven.
 - Durable cache-policy experiments only after correctness gates pass.
