@@ -15,7 +15,7 @@ class ReleaseMetadataContractTest(unittest.TestCase):
         cls.project = cls.pyproject["project"]
 
     def test_pep639_license_metadata_is_explicit(self) -> None:
-        self.assertEqual(self.project["license"], "MIT")
+        self.assertEqual(self.project["license"], "Apache-2.0")
         self.assertEqual(
             self.project["license-files"],
             ["LICENSE", "THIRD_PARTY_NOTICES.md"],
@@ -51,9 +51,10 @@ class ReleaseMetadataContractTest(unittest.TestCase):
     def test_legal_files_keep_distinct_statebraid_and_upstream_notices(self) -> None:
         license_text = (ROOT / "LICENSE").read_text(encoding="utf-8")
         notices = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
-        self.assertIn("Copyright (c) 2026 StateBraid contributors", license_text)
+        self.assertIn("Apache License", license_text)
+        self.assertIn("Version 2.0, January 2004", license_text)
         self.assertIn("Copyright © 2023 Apple Inc.", notices)
-        self.assertIn("StateBraid itself is distributed under the MIT License", notices)
+        self.assertIn("StateBraid itself is distributed under the Apache License 2.0", notices)
         self.assertNotIn("has not yet been selected", notices)
 
     def test_release_docs_freeze_rc_and_tag_policy(self) -> None:

@@ -215,7 +215,7 @@ PYTHONPATH=src pyright src tests bench scripts
 
 ## License
 
-StateBraid is licensed under the [MIT License](LICENSE). The packaged MLX
+StateBraid is licensed under the [Apache License 2.0](LICENSE). The packaged MLX
 reference integration has separate upstream provenance; the Apple/mlx-lm MIT
 notice is retained in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 

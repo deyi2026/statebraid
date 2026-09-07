@@ -60,7 +60,7 @@ the final release-readiness audit explicitly passes.
 Every wheel and sdist must contain or declare:
 
 - distribution version matching `statebraid.__version__`;
-- `License-Expression: MIT`;
+- `License-Expression: Apache-2.0`;
 - both `LICENSE` and `THIRD_PARTY_NOTICES.md` as PEP 639 license files;
 - README-derived Markdown long description;
 - the StateBraid console scripts;

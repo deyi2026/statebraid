@@ -27,7 +27,7 @@
   Pyright, contract, privacy and package-content checks through GitHub Actions;
   protect `main` for everyone with strict required checks, PR flow, linear
   history, conversation resolution, and no force-push/deletion.
-- **DONE (Release Preparation):** select MIT for the StateBraid distribution,
+- **DONE (Release Preparation):** select Apache License 2.0 for the StateBraid distribution,
   retain Apple/mlx-lm provenance separately, adopt PEP 639 license metadata,
   package legal/release documentation, and advance source metadata to
   `0.1.0rc1`. Formal release tagging remains gated on the final release-readiness

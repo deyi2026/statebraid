@@ -32,7 +32,7 @@ release and this preparation phase does not create a Git tag or GitHub Release.
 - product scope narrowed to **agent-aware compute continuity**; task, evidence,
   execution and provider-interruption semantics remain agent-harness/model owned;
 - StateBraid activation remains explicit and default-off;
-- project source distribution is licensed under MIT and retains the separate
+- project source distribution is licensed under Apache License 2.0 and retains the separate
   Apple/mlx-lm MIT notice required by the reference-integration provenance.
 
 ### Qualification boundary

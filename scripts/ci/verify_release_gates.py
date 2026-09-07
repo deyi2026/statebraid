@@ -87,7 +87,7 @@ def _verify_distribution_metadata(metadata: object, version: str, label: str) ->
         raise SystemExit(f"{label}: unexpected package version: {get('Version')!r}")
     if get("Requires-Python") != ">=3.11":
         raise SystemExit(f"{label}: unexpected Requires-Python: {get('Requires-Python')!r}")
-    if get("License-Expression") != "MIT":
+    if get("License-Expression") != "Apache-2.0":
         raise SystemExit(
             f"{label}: unexpected License-Expression: {get('License-Expression')!r}"
         )
