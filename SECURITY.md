@@ -47,6 +47,13 @@ Trusted ownership→trust-domain derivation is a mechanical cache-isolation help
 not authentication. The caller must establish ownership in a trusted external
 boundary before providing it to StateBraid.
 
+`backend_identity` has a parallel provenance requirement: it must identify a
+backend already selected/configured by a trusted Harness, operator, or serving
+gateway. StateBraid may validate its bounded shape and mechanical capabilities but
+must never derive backend/model routing from prompt/task meaning. A syntactically
+valid `backend_identity` or `trust_domain` is not proof that the integrating caller
+derived it correctly.
+
 ## Agent-layer security boundary
 
 Selected evidence, fold/receipt recovery, provider-interruption continuation,

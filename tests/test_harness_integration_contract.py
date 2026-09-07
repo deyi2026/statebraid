@@ -141,6 +141,18 @@ class HarnessIntegrationContractTest(unittest.TestCase):
         self.assertNotIn("goal", " ".join(metadata["allowed_inputs"]))
         self.assertIn("goal", metadata["forbidden_semantic_fields"])
         self.assertIn("cache_tag", metadata["forbidden_semantic_fields"])
+        self.assertEqual(
+            metadata["backend_identity_provenance"],
+            "trusted-operator-or-configured-serving-backend",
+        )
+        self.assertEqual(
+            metadata["trust_domain_provenance"],
+            "trusted-authentication-or-ownership-boundary",
+        )
+        self.assertEqual(
+            metadata["semantic_provenance_validation"],
+            "deployment-owned-not-statebraid-inferred",
+        )
 
     def test_resource_constraints_reject_non_mechanical_extension(self) -> None:
         with self.assertRaises(IntegrationContractViolation):

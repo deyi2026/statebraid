@@ -29,9 +29,10 @@
   history, conversation resolution, and no force-push/deletion.
 - **DONE (Release Preparation):** select Apache License 2.0 for the StateBraid distribution,
   retain Apple/mlx-lm provenance separately, adopt PEP 639 license metadata,
-  package legal/release documentation, and advance source metadata to
-  `0.1.0rc1`. Formal release tagging remains gated on the final release-readiness
-  audit.
+  package legal/release documentation, pass the release-candidate audit, and advance
+  final-preparation source metadata to `0.1.0`. Formal release tagging remains a
+  separate gate on the exact protected-main SHA after post-merge CI and final
+  fresh-clone verification.
 - Maintain one canonical integration benchmark that detects agent-behavior regressions while reporting cache reuse, new prefill, worker health and factual compute telemetry.
 
 ## v0.2 -- backend abstraction and capability reporting

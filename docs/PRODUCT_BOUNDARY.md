@@ -124,6 +124,13 @@ mechanical capabilities, but it must not inspect task/message semantics to route
 rank backends. The normative cross-layer schema is
 [`HARNESS_INTEGRATION_CONTRACT_V0_1.md`](HARNESS_INTEGRATION_CONTRACT_V0_1.md).
 
+The backend identity crossing that boundary must be the trusted identity of an
+already configured/selected serving backend, not a task-derived hint manufactured
+by StateBraid. Likewise, trust-domain identity must originate at a trusted
+authentication/ownership boundary. StateBraid validates mechanical identity and
+compatibility; it does not establish semantic provenance by interpreting those
+strings.
+
 A generic chat/inference gateway is outside the StateBraid product boundary. An
 experimental Phase 9 service/proxy draft was reviewed and intentionally not adopted
 as a product surface; the decision is recorded in

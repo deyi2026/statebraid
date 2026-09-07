@@ -298,6 +298,9 @@ def integration_contract_metadata() -> dict[str, Any]:
         ],
         "forbidden_semantic_fields": list(FORBIDDEN_SEMANTIC_FIELDS),
         "backend_selection": "external-harness-or-gateway-owned",
+        "backend_identity_provenance": "trusted-operator-or-configured-serving-backend",
+        "trust_domain_provenance": "trusted-authentication-or-ownership-boundary",
+        "semantic_provenance_validation": "deployment-owned-not-statebraid-inferred",
         "statebraid_role": "mechanical compatibility gate and compute-continuity facts",
     }
 
