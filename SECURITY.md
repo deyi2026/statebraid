@@ -4,6 +4,17 @@ StateBraid handles model-serving state derived from private prompts, tool output
 source code, and local paths. Correct cache reuse is therefore a security property,
 not only a performance feature.
 
+## Reporting a vulnerability
+
+For security vulnerabilities, use GitHub's private Security Advisory reporting
+flow rather than opening a public issue with exploit details:
+
+https://github.com/deyi2026/statebraid/security/advisories/new
+
+Do not include credentials, production prompts, private tool outputs, model data,
+or other sensitive payloads in a public issue. General non-sensitive bugs may use
+the public issue tracker after the repository is public.
+
 ## Repository hygiene
 
 Do not commit:

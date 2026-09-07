@@ -88,7 +88,7 @@ statebraid-doctor contract --json
 statebraid-doctor integration --json
 ```
 
-See [`docs/BACKEND_CONTRACT_V0_2.md`](docs/BACKEND_CONTRACT_V0_2.md).
+See [`docs/BACKEND_CONTRACT_V0_2.md`](https://github.com/deyi2026/statebraid/blob/main/docs/BACKEND_CONTRACT_V0_2.md).
 
 The second backend proof is llama.cpp. Against audited upstream
 `465e49b9cea78a68b9c244ffb48d0ee24a82873d`, StateBraid uses only public
@@ -103,7 +103,7 @@ statebraid-doctor llama-cpp --url http://127.0.0.1:8080 --json
 The doctor fails closed unless both the public API surface and the exact audited
 source commit match. This remains a Backend Contract capability qualification,
 not v0.1 runtime qualification. See
-[`docs/LLAMA_CPP_REFERENCE_V0_2.md`](docs/LLAMA_CPP_REFERENCE_V0_2.md).
+[`docs/LLAMA_CPP_REFERENCE_V0_2.md`](https://github.com/deyi2026/statebraid/blob/main/docs/LLAMA_CPP_REFERENCE_V0_2.md).
 
 ## Non-goals for v0.1
 
@@ -141,7 +141,7 @@ are qualified as a **cache-isolation primitive only** and require a trusted
 authenticated gateway/harness to derive `cache_namespace`; StateBraid is not the
 authentication or TLS boundary.
 
-See [`docs/SUPPORTED_SCOPE_V0_1.md`](docs/SUPPORTED_SCOPE_V0_1.md), or query the
+See [`docs/SUPPORTED_SCOPE_V0_1.md`](https://github.com/deyi2026/statebraid/blob/main/docs/SUPPORTED_SCOPE_V0_1.md), or query the
 installed package directly:
 
 ```bash
@@ -163,13 +163,23 @@ python -m pip install .
 statebraid-reference mlx --output statebraid-mlx.patch
 ```
 
-Apply that patch only to the exact qualified MLX-LM base, make the patched MLX
-package importable in the server environment, and require the compatibility gate
-before activation:
+Apply that patch only to the exact qualified MLX-LM base, then install that exact
+patched checkout into the **same Python environment** that will run the server. The
+upstream package metadata installs its MLX dependency requirements; a clean patch
+apply by itself is not an installation or compatibility result:
 
 ```bash
+git clone https://github.com/ml-explore/mlx-lm.git
+cd mlx-lm
+git checkout 6d21ce4b065a2e163fa6de76a9936c61aeb5784a
+git apply --check ../statebraid-mlx.patch
+git apply ../statebraid-mlx.patch
+python -m pip install .
 statebraid-doctor mlx
 ```
+
+Run the doctor from that same environment before activation. It must exit `0`; an
+unpatched, unavailable, or incompatible MLX-LM installation fails closed.
 
 StateBraid activation remains explicit and default-off:
 
@@ -183,7 +193,7 @@ the patched backend on its native `LRUPromptCache` path. A request may provide
 derive that value rather than accepting an arbitrary tenant name from an
 untrusted client.
 
-See [`docs/DISTRIBUTION_BOUNDARY.md`](docs/DISTRIBUTION_BOUNDARY.md) for the exact
+See [`docs/DISTRIBUTION_BOUNDARY.md`](https://github.com/deyi2026/statebraid/blob/main/docs/DISTRIBUTION_BOUNDARY.md) for the exact
 patch SHA256, compatibility API markers, apply procedure, and security boundary.
 
 ## Current status
@@ -215,7 +225,7 @@ still allowing compatible additions and internal optimization. Changes to cache
 identity, semantic blindness, stable/active lineage, hard budgets, transactional
 rollback, generation-safe exact hits, or required public entry points must follow
 the compatibility gates in
-[`docs/COMPUTE_FREEZE_V0_1.md`](docs/COMPUTE_FREEZE_V0_1.md).
+[`docs/COMPUTE_FREEZE_V0_1.md`](https://github.com/deyi2026/statebraid/blob/main/docs/COMPUTE_FREEZE_V0_1.md).
 
 Phase D aligns the product definition with that frozen compute contract: StateBraid
 is no longer described as the owner of selected-evidence, interruption recovery,
@@ -232,28 +242,28 @@ history stay outside this repository.
 
 See:
 
-- [`docs/PRODUCT_BOUNDARY.md`](docs/PRODUCT_BOUNDARY.md)
-- [`docs/BACKEND_CONTRACT_V0_2.md`](docs/BACKEND_CONTRACT_V0_2.md)
-- [`docs/HARNESS_INTEGRATION_CONTRACT_V0_1.md`](docs/HARNESS_INTEGRATION_CONTRACT_V0_1.md)
-- [`docs/PHASE9_SERVICE_BOUNDARY_DECISION.md`](docs/PHASE9_SERVICE_BOUNDARY_DECISION.md)
-- [`docs/LLAMA_CPP_REFERENCE_V0_2.md`](docs/LLAMA_CPP_REFERENCE_V0_2.md)
-- [`docs/PHASE1_COMPUTE_CONTINUITY.md`](docs/PHASE1_COMPUTE_CONTINUITY.md)
-- [`docs/PHASE1_5_MLX_STORAGE_ADAPTER.md`](docs/PHASE1_5_MLX_STORAGE_ADAPTER.md)
-- [`docs/PHASE1_6_PRODUCTION_CANARY.md`](docs/PHASE1_6_PRODUCTION_CANARY.md)
-- [`docs/PHASE1_6_1_P0_HARDENING.md`](docs/PHASE1_6_1_P0_HARDENING.md)
-- [`docs/PHASE1_6_2_REAL_INTEGRATION_QUALIFICATION.md`](docs/PHASE1_6_2_REAL_INTEGRATION_QUALIFICATION.md)
-- [`docs/COMPUTE_FREEZE_V0_1.md`](docs/COMPUTE_FREEZE_V0_1.md)
-- [`docs/TRUST_DOMAIN_BOUNDARY.md`](docs/TRUST_DOMAIN_BOUNDARY.md)
-- [`docs/DISTRIBUTION_BOUNDARY.md`](docs/DISTRIBUTION_BOUNDARY.md)
-- [`docs/SUPPORTED_SCOPE_V0_1.md`](docs/SUPPORTED_SCOPE_V0_1.md)
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-- [`docs/ROADMAP.md`](docs/ROADMAP.md)
-- [`docs/RELEASE_PROCESS.md`](docs/RELEASE_PROCESS.md)
-- [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)
-- [`CHANGELOG.md`](CHANGELOG.md)
-- [`SECURITY.md`](SECURITY.md)
-- [`LICENSE`](LICENSE)
-- [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
+- [`docs/PRODUCT_BOUNDARY.md`](https://github.com/deyi2026/statebraid/blob/main/docs/PRODUCT_BOUNDARY.md)
+- [`docs/BACKEND_CONTRACT_V0_2.md`](https://github.com/deyi2026/statebraid/blob/main/docs/BACKEND_CONTRACT_V0_2.md)
+- [`docs/HARNESS_INTEGRATION_CONTRACT_V0_1.md`](https://github.com/deyi2026/statebraid/blob/main/docs/HARNESS_INTEGRATION_CONTRACT_V0_1.md)
+- [`docs/PHASE9_SERVICE_BOUNDARY_DECISION.md`](https://github.com/deyi2026/statebraid/blob/main/docs/PHASE9_SERVICE_BOUNDARY_DECISION.md)
+- [`docs/LLAMA_CPP_REFERENCE_V0_2.md`](https://github.com/deyi2026/statebraid/blob/main/docs/LLAMA_CPP_REFERENCE_V0_2.md)
+- [`docs/PHASE1_COMPUTE_CONTINUITY.md`](https://github.com/deyi2026/statebraid/blob/main/docs/PHASE1_COMPUTE_CONTINUITY.md)
+- [`docs/PHASE1_5_MLX_STORAGE_ADAPTER.md`](https://github.com/deyi2026/statebraid/blob/main/docs/PHASE1_5_MLX_STORAGE_ADAPTER.md)
+- [`docs/PHASE1_6_PRODUCTION_CANARY.md`](https://github.com/deyi2026/statebraid/blob/main/docs/PHASE1_6_PRODUCTION_CANARY.md)
+- [`docs/PHASE1_6_1_P0_HARDENING.md`](https://github.com/deyi2026/statebraid/blob/main/docs/PHASE1_6_1_P0_HARDENING.md)
+- [`docs/PHASE1_6_2_REAL_INTEGRATION_QUALIFICATION.md`](https://github.com/deyi2026/statebraid/blob/main/docs/PHASE1_6_2_REAL_INTEGRATION_QUALIFICATION.md)
+- [`docs/COMPUTE_FREEZE_V0_1.md`](https://github.com/deyi2026/statebraid/blob/main/docs/COMPUTE_FREEZE_V0_1.md)
+- [`docs/TRUST_DOMAIN_BOUNDARY.md`](https://github.com/deyi2026/statebraid/blob/main/docs/TRUST_DOMAIN_BOUNDARY.md)
+- [`docs/DISTRIBUTION_BOUNDARY.md`](https://github.com/deyi2026/statebraid/blob/main/docs/DISTRIBUTION_BOUNDARY.md)
+- [`docs/SUPPORTED_SCOPE_V0_1.md`](https://github.com/deyi2026/statebraid/blob/main/docs/SUPPORTED_SCOPE_V0_1.md)
+- [`docs/ARCHITECTURE.md`](https://github.com/deyi2026/statebraid/blob/main/docs/ARCHITECTURE.md)
+- [`docs/ROADMAP.md`](https://github.com/deyi2026/statebraid/blob/main/docs/ROADMAP.md)
+- [`docs/RELEASE_PROCESS.md`](https://github.com/deyi2026/statebraid/blob/main/docs/RELEASE_PROCESS.md)
+- [`docs/RELEASE_CHECKLIST.md`](https://github.com/deyi2026/statebraid/blob/main/docs/RELEASE_CHECKLIST.md)
+- [`CHANGELOG.md`](https://github.com/deyi2026/statebraid/blob/main/CHANGELOG.md)
+- [`SECURITY.md`](https://github.com/deyi2026/statebraid/blob/main/SECURITY.md)
+- [`LICENSE`](https://github.com/deyi2026/statebraid/blob/main/LICENSE)
+- [`THIRD_PARTY_NOTICES.md`](https://github.com/deyi2026/statebraid/blob/main/THIRD_PARTY_NOTICES.md)
 
 ## Development verification
 
@@ -271,9 +281,9 @@ PYTHONPATH=src pyright src tests bench scripts
 
 ## License
 
-StateBraid is licensed under the [Apache License 2.0](LICENSE). The packaged MLX
+StateBraid is licensed under the [Apache License 2.0](https://github.com/deyi2026/statebraid/blob/main/LICENSE). The packaged MLX
 reference integration has separate upstream provenance; the Apple/mlx-lm MIT
-notice is retained in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+notice is retained in [THIRD_PARTY_NOTICES.md](https://github.com/deyi2026/statebraid/blob/main/THIRD_PARTY_NOTICES.md).
 
 ## Project identity
 

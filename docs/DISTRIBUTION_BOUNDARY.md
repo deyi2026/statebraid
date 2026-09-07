@@ -35,8 +35,8 @@ apply the packaged patch.
 
 ## Install and materialize the reference patch
 
-During private release preparation, install StateBraid from a source checkout or
-built wheel:
+Install StateBraid from a source checkout or built wheel in the Python environment
+that will also host the qualified MLX-LM backend:
 
 ```bash
 python -m pip install .
@@ -59,11 +59,17 @@ cd mlx-lm
 git checkout 6d21ce4b065a2e163fa6de76a9936c61aeb5784a
 git apply --check ../statebraid-mlx.patch
 git apply ../statebraid-mlx.patch
+python -m pip install .
 ```
 
 Do not apply the v0.1 reference patch to a different MLX-LM commit and infer
 compatibility from a clean apply. A different upstream SHA requires separate
 qualification because server/cache behavior may have changed.
+
+The `python -m pip install .` step is intentional: it installs the exact patched
+checkout and its declared dependencies into the serving environment. Do not treat
+`git apply` alone, or an unrelated pre-installed `mlx-lm`, as satisfying the v0.1
+backend qualification. Run the compatibility doctor from this same environment.
 
 ## Compatibility gate
 

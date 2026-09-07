@@ -9,6 +9,19 @@ No unreleased user-facing changes are recorded yet.
 
 ## 0.1.0 - 2026-09-07
 
+### Public distribution hygiene
+
+- make repository-file links in the packaged README absolute GitHub URLs so the
+  PyPI long description does not emit broken relative documentation links;
+- add an explicit private GitHub Security Advisory reporting path and publish
+  documentation/security project URLs in package metadata;
+- require the exact patched MLX-LM checkout to be installed, with its declared
+  dependencies, in the serving environment before `statebraid-doctor mlx` is
+  treated as a compatibility gate;
+- add release-checklist gates for public-ref/history privacy, portable links,
+  vulnerability reporting, and remote-branch minimization before visibility is
+  changed from private to public.
+
 ### Harness integration boundary
 
 - add Harness ↔ StateBraid Integration Contract v0.1 with a closed mechanical
