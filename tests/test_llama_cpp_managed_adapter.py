@@ -81,7 +81,26 @@ class FakeManagedTransport:
         if action == "capture":
             if not self.capture_queue:
                 raise AssertionError("no capture accounting queued")
-            n_tokens, n_bytes = self.capture_queue.pop(0)
+            expected_tokens = payload.get("expected_tokens")
+            if (
+                not isinstance(expected_tokens, list)
+                or not expected_tokens
+                or any(
+                    not isinstance(token, int) or isinstance(token, bool)
+                    for token in expected_tokens
+                )
+            ):
+                raise ValueError("expected_tokens must be a non-empty integer array")
+            queued_identity, n_bytes = self.capture_queue.pop(0)
+            if isinstance(queued_identity, int):
+                if queued_identity != len(expected_tokens):
+                    raise ValueError("expected_tokens do not match current slot prompt")
+                n_tokens = queued_identity
+            else:
+                actual_tokens = list(queued_identity)
+                if actual_tokens != expected_tokens:
+                    raise ValueError("expected_tokens do not match current slot prompt")
+                n_tokens = len(actual_tokens)
             handle = f"sbm1-{self.next_handle:016x}"
             self.next_handle += 1
             self.handles[handle] = (n_tokens, n_bytes)
@@ -187,9 +206,11 @@ class LlamaCppManagedAdapterTest(unittest.TestCase):
         transport = FakeManagedTransport()
         adapter = self.adapter(transport)
         transport.capture_queue.append((3, 100))
-        state = adapter.capture_current_state()
+        state = adapter.capture_current_state([1, 2, 3])
         self.assertEqual(state.n_tokens, 3)
         self.assertEqual(state.nbytes, 100)
+        capture_action = next(row for row in transport.actions if row[0] == "capture")
+        self.assertEqual(capture_action[1]["expected_tokens"], [1, 2, 3])
         self.assertEqual(adapter.clear_live_slot(), 3)
         adapter.restore_state(state)
         self.assertEqual(len(transport.handles), 1)
@@ -238,10 +259,21 @@ class LlamaCppManagedAdapterTest(unittest.TestCase):
         cache = LlamaCppStateBraidPromptCache(
             self.adapter(transport), max_sequences=2, max_bytes=1000
         )
-        transport.capture_queue.append((4, 100))
-        with self.assertRaisesRegex(ValueError, "token count"):
+        transport.capture_queue.append(([1, 2, 4], 100))
+        with self.assertRaisesRegex(ValueError, "expected_tokens"):
             cache.capture_current([1, 2, 3])
         self.assertEqual(transport.handles, {})
+
+    def test_low_level_capture_rejects_invalid_expected_tokens_before_http(self):
+        transport = FakeManagedTransport()
+        adapter = self.adapter(transport)
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            adapter.capture_current_state([])
+        with self.assertRaisesRegex(TypeError, "integers"):
+            adapter.capture_current_state([1, True])
+        with self.assertRaisesRegex(ValueError, "int32"):
+            adapter.capture_current_state([1 << 40])
+        self.assertFalse(any(action == "capture" for action, _ in transport.actions))
 
     def test_prepare_clears_live_slot_then_restores_best_resident_handle(self):
         transport = FakeManagedTransport()

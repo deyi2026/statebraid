@@ -18,8 +18,9 @@ upstream source:
 - managed handle implementation: `29cad05988c9c48ee26ded83764ae70ae6edf665`;
 - exclusive-policy `clear` primitive: `6e7d910135a4ef586aa89b41e2ceaa2058b2defa`;
 - loopback-only control-plane hardening: `0f75058ccb5c4e0d7bd029d37678435eb0d2458c`;
+- exact-token capture binding: `04329aacab48f91c79cd33490c2b4b33b29a7ef5`;
 - StateBraid adapter requires `build_info` matching the final
-  `0f75058ccb5c4e0d7bd029d37678435eb0d2458c` reference.
+  `04329aacab48f91c79cd33490c2b4b33b29a7ef5` reference.
 
 The patch is opt-in through `--statebraid-managed-cache`. Startup fails closed if
 native `--cache-ram` is non-zero, preventing two independent admission/eviction
@@ -143,27 +144,32 @@ and LCP-overclaim observations, response loss after physical drop, and unresolve
 physical GC. The old registry is restored on pre-commit failure, new unbound
 handles are removed, unresolved GC blocks new capture, and policy hit accounting
 is driven only by factual completion telemetry. The managed/stock/policy target
-set is **44 PASS** and the complete StateBraid suite is **129 PASS / 5 skipped /
-100 subtests PASS** after the integration hardening.
+set is **48 PASS** and the complete StateBraid suite is **130 PASS / 5 skipped /
+100 subtests PASS** after the exact-token integration hardening.
 
 ## Real server evidence
 
-A real tiny llama-server built from the final loopback-hardened M1 source
-`0f75058ccb5c4e0d7bd029d37678435eb0d2458c` was driven through the formal
-StateBraid managed facade on one isolated slot. A 433-token stable state was
-captured, then a 470-token extension executed through the facade's atomic
+A real tiny llama-server built from the historical exact-token M1 source
+`04329aacab48f91c79cd33490c2b4b33b29a7ef5` was driven through the formal
+StateBraid managed facade on one isolated slot. This is real-GGUF evidence bound
+to that exact source; the binding for the current managed candidate is recorded
+in the kit manifest. Capture supplied the exact
+expected token IDs and the server rejected identity mismatch before allocating a
+handle. A 442-token stable state was captured, then a 471-token extension
+executed through the facade's atomic
 `clear -> select -> restore -> completion -> factual-hit` path with:
 
-- `cache_n = 433`;
-- `prompt_n = 37`.
+- `cache_n = 442`;
+- `prompt_n = 29`.
 
 The stable entry remained at zero policy hits after cold execution, capture, and
 restore; it advanced to one hit only after the completion response reported
 `cache_n = 433`.
 
 After admitting both stable and active states, `trim_to(n_sequences=1)` reduced
-the physical server store to one handle. The server-reported payload bytes and
-StateBraid policy byte accounting matched exactly after the trim.
+the physical server store to one handle. The final server-reported payload size
+was 288,328 bytes and matched StateBraid policy byte accounting exactly after the
+trim.
 
 The larger real-GGUF M1 experiment separately exercised a real autonomous
 `read_file` tool call interrupted by another session. With the same 443-token
