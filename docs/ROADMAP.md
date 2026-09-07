@@ -18,6 +18,11 @@
   `6d21ce4`, expose capability-based `statebraid-doctor` and patch-export tooling,
   preserve explicit/default-off activation and native rollback, and validate the
   clean reference with upstream regressions plus a real single-model canary.
+- **DONE (Supported Scope):** separate backend-neutral Compute Contract v0.1 from
+  the narrower runtime qualification; freeze the exact Apple Silicon/MLX
+  reference profile, Qwen3.6-derived Ornith hybrid/non-trimmable evidence,
+  default-off activation, trust-domain conditions, and explicit unqualified
+  runtime modes as machine-readable package metadata plus documentation.
 - Maintain one canonical integration benchmark that detects agent-behavior regressions while reporting cache reuse, new prefill, worker health and factual compute telemetry.
 
 ## v0.2 -- backend abstraction and capability reporting
@@ -30,7 +35,8 @@
   exact transactional storage, server activation, and request-scoped namespace
   support. Extend reporting to generic trimmability, generation-safe replay,
   sequence capacity, and byte accounting before broader backend claims.
-- Qualify generic trimmable-KV behavior separately before claiming parity beyond the current Ornith/Qwen hybrid path.
+- Qualify generic trimmable-KV behavior separately before claiming parity beyond
+  the exact v0.1 reference profile.
 
 ## v0.3 -- multi-session compute hardening
 

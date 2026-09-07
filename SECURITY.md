@@ -19,6 +19,8 @@ Do not commit:
 ## Runtime principles
 
 - Cross-session cache hits must respect explicit namespace/ownership/trust boundaries.
+- `cache_namespace` is a cache-isolation token, not authentication; multi-tenant
+  deployments must derive it from a trusted authenticated ownership boundary.
 - A cache hit must never cause content from another trust domain to become visible as
   conversational state.
 - Cache identity and reuse decisions are based on mechanical token/namespace facts,

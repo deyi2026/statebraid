@@ -6,9 +6,10 @@ Phase 1.6.2 qualifies StateBraid's mechanical compute-continuity policy through
 an unchanged LFL agent path. LFL remains the owner of task, evidence, tool and
 execution continuity. StateBraid remains blind to those semantics.
 
-The qualification is intentionally limited to the already-supported
-Ornith/Qwen hybrid non-trimmable MLX path. It does not claim generic trimmable
-KV parity or make StateBraid the default production cache policy.
+The qualification is intentionally limited to the already-qualified
+`Ornith-1.5-35B-A3B-MLX` Qwen3.6-derived hybrid/non-trimmable MLX cache path. It
+does not claim blanket Qwen-family support, generic trimmable-KV parity, or make
+StateBraid the default production cache policy.
 
 ## Integrity of the comparison
 
@@ -121,7 +122,7 @@ present, and the fatal scan was clean.
 
 **PASS for real LFL integration qualification.**
 
-StateBraid has demonstrated, on the scoped Ornith/Qwen hybrid path:
+StateBraid has demonstrated, on that scoped hybrid/non-trimmable reference path:
 
 - unchanged LFL task completion and evidence fidelity;
 - unchanged tool behavior with zero canonical duplicate calls;

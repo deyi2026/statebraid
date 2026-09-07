@@ -53,11 +53,12 @@ implementations of the same N-1 invariant from drifting.
 
 ## Capability scope
 
-Phase 1.6/1.6.1 production evidence currently covers the **Ornith/Qwen hybrid
-non-trimmable path**. The transactional storage facade deliberately bypasses
-native MLX LRU eviction and prefix-pruning policy so StateBraid can own capacity
-decisions. Trimmable-KV behavior therefore needs a separate parity phase before
-StateBraid can claim generic MLX-model support.
+Phase 1.6/1.6.1 production evidence currently covers the
+**`Ornith-1.5-35B-A3B-MLX` Qwen3.6-derived hybrid/non-trimmable path**. This is not
+a blanket Qwen-family support claim. The transactional storage facade deliberately
+bypasses native MLX LRU eviction and prefix-pruning policy so StateBraid can own
+capacity decisions. Trimmable-KV behavior therefore needs a separate parity phase
+before StateBraid can claim generic MLX-model support.
 
 ## Deterministic qualification
 

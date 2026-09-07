@@ -97,6 +97,12 @@ Compute-facing benchmark metrics should report at least:
 - TTFT only when it is truly measured, never inferred from full request latency;
 - worker health/fatal conditions.
 
+The current runtime support claim is intentionally narrower than this
+backend-neutral architecture. The exact qualified MLX base, model/cache shape,
+platform, concurrency profile, trust-domain conditions, and unqualified modes are
+defined in [`SUPPORTED_SCOPE_V0_1.md`](SUPPORTED_SCOPE_V0_1.md). Adapter
+compatibility alone does not widen that support claim.
+
 ## Phase 1 implementation boundary
 
 The first product extraction deliberately separates policy from storage:

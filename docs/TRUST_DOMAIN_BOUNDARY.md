@@ -2,7 +2,10 @@
 
 ## Status
 
-Qualified for the current v0.1 MLX hybrid/non-trimmable integration path.
+Qualified for the current v0.1
+`Ornith-1.5-35B-A3B-MLX` Qwen3.6-derived hybrid/non-trimmable MLX reference path.
+This trust-domain result does not widen the model-family support claim beyond the
+profile in [`SUPPORTED_SCOPE_V0_1.md`](SUPPORTED_SCOPE_V0_1.md).
 
 StateBraid cache identity remains mechanical: an exact token sequence belongs to
 an explicit cache namespace. The MLX integration now composes that namespace from

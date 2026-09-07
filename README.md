@@ -61,6 +61,37 @@ StateBraid v0.1 is **not**:
 - a hidden-chain-of-thought persistence system;
 - a replacement for the agent harness or tool layer.
 
+## v0.1 supported runtime scope
+
+The backend-neutral compute contract is broader than the current **runtime
+qualification**. The v0.1 reference-qualified serving profile is intentionally
+narrow:
+
+- Apple Silicon / macOS;
+- the packaged reference patch against exact upstream `mlx-lm` base
+  `6d21ce4b065a2e163fa6de76a9936c61aeb5784a`;
+- `Ornith-1.5-35B-A3B-MLX`, a Qwen3.6-derived hybrid/non-trimmable cache path;
+- MLX batch generation, model-native thinking, unquantized KV;
+- prompt concurrency `1`, decode concurrency `1`;
+- prompt-cache profile of 8 sequences / 4 GiB in the end-to-end qualification;
+- explicit StateBraid activation, which remains **default-off**.
+
+This is **not** a blanket support claim for Qwen models, all MLX models, arbitrary
+MLX-LM commits, generic trimmable KV, quantized KV, draft/speculative decoding,
+distributed serving, non-batch generation, or higher server concurrency.
+
+Single-user `local-default` cache isolation is qualified. Multiple trust domains
+are qualified as a **cache-isolation primitive only** and require a trusted
+authenticated gateway/harness to derive `cache_namespace`; StateBraid is not the
+authentication or TLS boundary.
+
+See [`docs/SUPPORTED_SCOPE_V0_1.md`](docs/SUPPORTED_SCOPE_V0_1.md), or query the
+installed package directly:
+
+```bash
+statebraid-doctor scope --json
+```
+
 ## v0.1 reference distribution path
 
 StateBraid is an independent Python package; it does not vendor the research
@@ -134,9 +165,10 @@ Phase D aligns the product definition with that frozen compute contract: StateBr
 is no longer described as the owner of selected-evidence, interruption recovery,
 or other agent-layer continuity mechanisms.
 
-Phase 1.6/1.6.1 qualification is currently limited to the **Ornith/Qwen hybrid
-non-trimmable** path. Generic trimmable-KV parity remains a separate future
-qualification.
+The real model qualification is currently limited to
+`Ornith-1.5-35B-A3B-MLX`, a **Qwen3.6-derived hybrid/non-trimmable** cache path.
+That lineage is not a blanket Qwen-family support claim. Generic trimmable-KV
+runtime parity remains a separate future qualification.
 
 The research workspace remains a source of experimental evidence; experimental
 worktrees, local model files, logs, generated evidence, and unrelated upstream
@@ -153,6 +185,7 @@ See:
 - [`docs/COMPUTE_FREEZE_V0_1.md`](docs/COMPUTE_FREEZE_V0_1.md)
 - [`docs/TRUST_DOMAIN_BOUNDARY.md`](docs/TRUST_DOMAIN_BOUNDARY.md)
 - [`docs/DISTRIBUTION_BOUNDARY.md`](docs/DISTRIBUTION_BOUNDARY.md)
+- [`docs/SUPPORTED_SCOPE_V0_1.md`](docs/SUPPORTED_SCOPE_V0_1.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`SECURITY.md`](SECURITY.md)

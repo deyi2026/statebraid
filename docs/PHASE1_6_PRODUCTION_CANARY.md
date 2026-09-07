@@ -4,9 +4,10 @@
 
 Phase 1.6 verifies that the Phase 1 compute-continuity policy and Phase 1.5 MLX
 storage adapter can run inside a real local MLX server without becoming the
-default policy. The real qualification in this phase is specifically for the
-**Ornith/Qwen hybrid non-trimmable cache path**. It is not a claim of parity for
-every MLX model/cache implementation.
+default policy. The real qualification in this phase is specifically for
+**`Ornith-1.5-35B-A3B-MLX`, a Qwen3.6-derived hybrid/non-trimmable cache path**.
+It is not a blanket Qwen-family claim or a claim of parity for every MLX
+model/cache implementation.
 
 The activation remains **explicit opt-in**. The normal runtime was restored
 after the canary.

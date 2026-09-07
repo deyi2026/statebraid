@@ -168,4 +168,6 @@ Against the exact upstream base above:
 
 These gates define the distribution compatibility boundary. Model-family support
 and broader runtime support claims are documented separately from the packaging
-mechanism.
+mechanism in [`SUPPORTED_SCOPE_V0_1.md`](SUPPORTED_SCOPE_V0_1.md). Passing the
+backend capability doctor is necessary but is not, by itself, a claim that an
+arbitrary model/cache/server configuration is v0.1 reference-qualified.

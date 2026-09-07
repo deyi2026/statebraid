@@ -120,8 +120,9 @@ observable agent behavior.
 
 ## Validated v0.1 scope
 
-The current production canary/qualification evidence covers the Ornith/Qwen
-hybrid non-trimmable MLX path with:
+The current real serving qualification covers
+`Ornith-1.5-35B-A3B-MLX`, a Qwen3.6-derived hybrid/non-trimmable MLX cache path,
+with:
 
 - explicit opt-in StateBraid activation;
 - StateBraid and CognitivePromptCache as mutually exclusive policy owners;
@@ -131,7 +132,11 @@ hybrid non-trimmable MLX path with:
 - semantic blindness to legacy `cache_tag` values;
 - successful rollback to the Cognitive control after qualification.
 
-Generic trimmable-KV production parity is not yet claimed.
+This is not a blanket Qwen-family or all-MLX-model support claim. Generic
+trimmable-KV production parity is not yet claimed. The exact runtime support
+matrix, reference MLX base, concurrency limits, trust-domain conditions, and
+explicit unqualified modes are frozen in
+[`SUPPORTED_SCOPE_V0_1.md`](SUPPORTED_SCOPE_V0_1.md).
 
 ## Success criteria
 

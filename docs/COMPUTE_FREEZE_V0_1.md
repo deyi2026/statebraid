@@ -113,8 +113,9 @@ An exact cache hit must never send an empty generation input to the model.
 - non-trimmable/hybrid cache uses an exact N-1 checkpoint when available;
 - if a safe shorter cache is unavailable, the full prompt is recomputed.
 
-For the currently production-qualified Ornith/Qwen hybrid path, N-1 replay is
-the verified behavior.
+For the currently reference-qualified `Ornith-1.5-35B-A3B-MLX` Qwen3.6-derived
+hybrid/non-trimmable path, N-1 replay is the verified real-model behavior. This is
+not a support claim for all Qwen-derived models.
 
 ### 7. Single cache-policy authority
 
@@ -122,8 +123,9 @@ StateBraid and another admission/eviction policy must not simultaneously own the
 same prompt-cache working set. The MLX activation remains explicit and
 default-off, while CognitivePromptCache remains available as rollback/control.
 
-The production-qualified scope is still the Ornith/Qwen hybrid non-trimmable
-path. Generic trimmable-KV production parity is not implied by this freeze.
+The runtime-qualified scope is still the exact hybrid/non-trimmable reference
+profile in [`SUPPORTED_SCOPE_V0_1.md`](SUPPORTED_SCOPE_V0_1.md). Generic
+trimmable-KV production parity is not implied by this freeze.
 
 ### 8. Factual telemetry only
 

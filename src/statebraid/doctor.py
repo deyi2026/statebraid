@@ -7,6 +7,7 @@ import json
 from collections.abc import Sequence
 
 from statebraid.compat.mlx import probe_mlx_backend
+from statebraid.support import support_scope
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -14,11 +15,34 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="backend", required=True)
     mlx = subparsers.add_parser("mlx", help="check the installed MLX backend")
     mlx.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    scope = subparsers.add_parser("scope", help="show the v0.1 support boundary")
+    scope.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
+    if args.backend == "scope":
+        scope = support_scope()
+        if args.json:
+            print(json.dumps(scope, sort_keys=True))
+        else:
+            reference = scope["reference_runtime"]
+            print(f"StateBraid support scope: {scope['support_scope_version']}")
+            print(
+                "reference runtime: "
+                f"{reference['backend']} on {reference['platform']}"
+            )
+            print(
+                "qualified model/cache: "
+                f"{reference['model']} ({reference['model_lineage']}, "
+                f"{reference['cache_shape']})"
+            )
+            print("activation default: off")
+            for item in scope["unqualified_runtime_features"]:
+                print(f"not qualified: {item}")
+        return 0
+
     if args.backend != "mlx":  # pragma: no cover - argparse owns this boundary
         raise AssertionError(args.backend)
 
