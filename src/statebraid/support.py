@@ -12,6 +12,7 @@ from typing import Any
 
 from statebraid.backend import BACKEND_CONTRACT_VERSION, BACKEND_OWNS, STATEBRAID_OWNS
 from statebraid.cache.namespace import DEFAULT_TRUST_DOMAIN, MAX_TRUST_DOMAIN_BYTES
+from statebraid.integration import HARNESS_INTEGRATION_CONTRACT_VERSION
 from statebraid.integrations.mlx import (
     REFERENCE_MLX_BASE_SHA,
     REFERENCE_MLX_SERVER_API_VERSION,
@@ -72,6 +73,7 @@ def support_scope() -> dict[str, Any]:
             "mlx_import_required": False,
             "runtime_qualification_is_narrower_than_core_api": True,
             "backend_contract_version": BACKEND_CONTRACT_VERSION,
+            "harness_integration_contract_version": HARNESS_INTEGRATION_CONTRACT_VERSION,
             "statebraid_owns": list(STATEBRAID_OWNS),
             "backend_owns": list(BACKEND_OWNS),
         },

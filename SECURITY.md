@@ -35,6 +35,18 @@ Do not commit:
 - Safety, authorization, privacy, and hard resource limits remain mechanical hard
   constraints.
 
+## Harness integration boundary
+
+Harness/model semantics must not cross into StateBraid through integration metadata.
+The Integration Contract rejects task/evidence/working-state/checkpoint/tool/
+completion/fold/retry fields and legacy semantic `cache_tag` authority. Backend
+selection is also external to StateBraid; the runtime may check an already-selected
+backend's mechanical capabilities but must not route from prompt meaning.
+
+Trusted ownership→trust-domain derivation is a mechanical cache-isolation helper,
+not authentication. The caller must establish ownership in a trusted external
+boundary before providing it to StateBraid.
+
 ## Agent-layer security boundary
 
 Selected evidence, fold/receipt recovery, provider-interruption continuation,

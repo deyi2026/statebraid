@@ -9,6 +9,20 @@ No unreleased user-facing changes are recorded yet.
 
 ## 0.1.0rc1 - 2026-09-07
 
+### Harness integration boundary
+
+- add Harness ↔ StateBraid Integration Contract v0.1 with a closed mechanical
+  input/output schema and explicit rejection of task/evidence/checkpoint/tool/
+  completion/fold/retry semantics and legacy `cache_tag` authority;
+- keep backend/model selection outside StateBraid and add only a mechanical
+  compatibility check for a backend selected by the Harness/gateway;
+- retain trusted ownership→opaque trust-domain derivation as a library primitive,
+  while explicitly rejecting the experimental generic Phase 9 chat/router/proxy
+  service as a StateBraid product surface;
+- require backend reuse observers to publish passive vs execution-coupled mode and
+  backend-state mutation risk, and require generation-safety claims to carry a
+  narrow qualification profile.
+
 ### Backend contract
 
 - add the second backend proof against exact upstream llama.cpp `465e49b9`: a
