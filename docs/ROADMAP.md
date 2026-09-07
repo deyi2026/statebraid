@@ -13,6 +13,11 @@
   cross-domain isolation tests, hostile-input validation, and a real single-model
   A/B/A canary; authenticated tenant-to-namespace assignment remains deployment
   infrastructure rather than StateBraid semantics.
+- **DONE (Distribution Boundary):** ship the StateBraid core independently from
+  MLX-LM, package a SHA256-frozen reference patch against exact upstream MLX-LM
+  `6d21ce4`, expose capability-based `statebraid-doctor` and patch-export tooling,
+  preserve explicit/default-off activation and native rollback, and validate the
+  clean reference with upstream regressions plus a real single-model canary.
 - Maintain one canonical integration benchmark that detects agent-behavior regressions while reporting cache reuse, new prefill, worker health and factual compute telemetry.
 
 ## v0.2 -- backend abstraction and capability reporting
@@ -21,7 +26,10 @@
 - Keep MLX as the first-class backend while preserving a backend-neutral core.
 - **DONE (Phase 1.5):** define and verify a narrow transactional MLX storage adapter without depending on private trie internals.
 - **Started in Phase 1.6:** expose bounded factual cache-policy telemetry needed to verify activation and prefix reuse.
-- Define backend capability reporting for exact storage, trimmability, generation-safe replay, sequence capacity and byte accounting.
+- **Started (Distribution Boundary):** versioned capability reporting now covers
+  exact transactional storage, server activation, and request-scoped namespace
+  support. Extend reporting to generic trimmability, generation-safe replay,
+  sequence capacity, and byte accounting before broader backend claims.
 - Qualify generic trimmable-KV behavior separately before claiming parity beyond the current Ornith/Qwen hybrid path.
 
 ## v0.3 -- multi-session compute hardening

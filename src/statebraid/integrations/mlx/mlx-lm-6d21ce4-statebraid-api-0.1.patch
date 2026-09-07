@@ -1,0 +1,543 @@
+diff --git a/bench/test_statebraid_reference.py b/bench/test_statebraid_reference.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..da267cfe597663d147c56c7c49c40162da46b804
+--- /dev/null
++++ b/bench/test_statebraid_reference.py
+@@ -0,0 +1,110 @@
++"""StateBraid reference-integration contract on clean upstream mlx-lm."""
++
++from queue import Queue
++from types import SimpleNamespace
++from typing import Any, cast
++import unittest
++from unittest.mock import Mock, patch
++
++import mlx_lm.models.cache as cache_module
++import mlx_lm.server as server
++
++
++class TinyKV:
++    def __init__(self, nbytes=32):
++        self.nbytes = nbytes
++
++    def is_trimmable(self):
++        return False
++
++
++class StateBraidStorageCapabilityTest(unittest.TestCase):
++    def test_versioned_transactional_storage_bypasses_native_capacity(self):
++        self.assertEqual(cache_module.STATEBRAID_STORAGE_API_VERSION, "0.1")
++        cache = cache_module.LRUPromptCache(max_size=1, max_bytes=1)
++        storage = cache.transactional_storage()
++        self.assertEqual(storage.api_version, "0.1")
++        storage.insert("m", [1], [TinyKV(20)], cache_type="stable")
++        storage.insert("m", [2], [TinyKV(30)], cache_type="active")
++        self.assertEqual(len(cache), 2)
++        self.assertEqual(cache.nbytes, 50)
++
++    def test_native_insert_still_enforces_native_capacity(self):
++        cache = cache_module.LRUPromptCache(max_size=1, max_bytes=1 << 20)
++        cache.insert_cache("m", [1], [TinyKV(20)])
++        cache.insert_cache("m", [2], [TinyKV(20)])
++        self.assertEqual(len(cache), 1)
++
++    def test_capture_remove_restore_preserves_payload_reference(self):
++        cache = cache_module.LRUPromptCache(max_size=1, max_bytes=1)
++        storage = cache.transactional_storage()
++        payload = [TinyKV(20)]
++        storage.insert("m", [1], payload, cache_type="stable")
++        snapshot = storage.capture("m", [1])
++        if snapshot is None:
++            self.fail("inserted snapshot disappeared")
++        self.assertIs(snapshot.prompt_cache, payload)
++        self.assertTrue(storage.remove("m", [1]))
++        self.assertIsNone(storage.capture("m", [1]))
++        storage.restore("m", [1], snapshot)
++        restored = storage.capture("m", [1])
++        if restored is None:
++            self.fail("restored snapshot disappeared")
++        self.assertIs(restored.prompt_cache, payload)
++
++
++class StateBraidServerCapabilityTest(unittest.TestCase):
++    def _run_cache(self, statebraid: bool):
++        provider = SimpleNamespace(
++            cli_args=SimpleNamespace(
++                prompt_cache_size=8,
++                prompt_cache_bytes=4096,
++            )
++        )
++        group = Mock()
++        group.rank.return_value = 0
++        with (
++            patch.object(server, "_STATEBRAID_ON", statebraid),
++            patch.object(server.mx.distributed, "init", return_value=group),
++            patch.object(server, "ResponseGenerator") as generator,
++            patch.object(server, "_run_http_server"),
++        ):
++            server.run("127.0.0.1", 0, cast(Any, provider))
++        return generator.call_args.args[1]
++
++    def test_server_contract_marker_and_request_namespace_field(self):
++        self.assertEqual(server.STATEBRAID_SERVER_API_VERSION, "0.1")
++        self.assertIn("cache_namespace", server.GenerationArguments.__dataclass_fields__)
++
++    def test_default_off_uses_native_lru(self):
++        cache = self._run_cache(False)
++        self.assertEqual(type(cache).__name__, "LRUPromptCache")
++
++    def test_statebraid_on_wraps_native_storage(self):
++        cache = self._run_cache(True)
++        self.assertEqual(type(cache).__name__, "MLXStateBraidPromptCache")
++        self.assertEqual(cache.activation_stats()["mode"], "statebraid")
++
++    def test_request_namespace_is_mechanically_distinct(self):
++        left = server._statebraid_cache_namespace(("model", None), "tenant-a")
++        right = server._statebraid_cache_namespace(("model", None), "tenant-b")
++        again = server._statebraid_cache_namespace(("model", None), "tenant-a")
++        self.assertEqual(left, again)
++        self.assertNotEqual(left, right)
++
++    def test_hostile_namespace_is_rejected(self):
++        with self.assertRaises(ValueError):
++            server._statebraid_cache_namespace(("model", None), "../tenant")
++
++    def test_statebraid_single_path_fails_closed(self):
++        generator = object.__new__(server.ResponseGenerator)
++        queue = Queue()
++        with patch.object(server, "_STATEBRAID_ON", True):
++            generator._serve_single((queue, object(), object()), None)
++        error = queue.get_nowait()
++        self.assertIsInstance(error, RuntimeError)
++        self.assertIsNone(queue.get_nowait())
++
++
++if __name__ == "__main__":
++    unittest.main(verbosity=2)
+diff --git a/mlx_lm/models/cache.py b/mlx_lm/models/cache.py
+index d9ab0ebcd50cbf2ff8569eea60404a7a532132e8..99f27790b1f8bd4fcc6cf1e622cb676bc6ec455e 100644
+--- a/mlx_lm/models/cache.py
++++ b/mlx_lm/models/cache.py
+@@ -1632,7 +1632,34 @@ class PromptTrie:
+         return PromptTrieResult(model, None, shorter, longer, common_prefix)
+ 
+ 
++STATEBRAID_STORAGE_API_VERSION = "0.1"
++
++
++@dataclass(frozen=True)
++class PromptCacheEntrySnapshot:
++    """Opaque exact-entry snapshot for one external cache-policy owner."""
++
++    prompt_cache: List[Any]
++    nbytes: int
++    cache_type: str
++
++
+ class LRUPromptCache:
++    external_policy_safe = True
++
++    def transactional_storage(self):
++        """Return exact storage mutation without native policy side effects.
++
++        The caller becomes the sole admission/eviction authority while using
++        this facade. Native LRU capacity and prefix-pruning logic is not run by
++        these exact operations.
++        """
++        if not self.external_policy_safe:
++            raise RuntimeError(
++                f"{type(self).__name__} does not support external-policy storage"
++            )
++        return PromptCacheTransactionalStorage(self)
++
+     @dataclass
+     class CacheEntry:
+         prompt_cache: List[Any]
+@@ -1773,3 +1800,71 @@ class LRUPromptCache:
+                 "n_bytes": self._n_bytes_by_type[cache_type],
+             }
+         return result
++
++
++class PromptCacheTransactionalStorage:
++    """Versioned exact storage surface consumed by StateBraid adapters."""
++
++    api_version = STATEBRAID_STORAGE_API_VERSION
++
++    def __init__(self, cache: LRUPromptCache):
++        self._cache = cache
++
++    def capture(self, model: Any, tokens: List[int]):
++        tokens = list(tokens)
++        result = self._cache._trie.search(model, tokens)
++        if result.exact is None:
++            return None
++        entry = self._cache._trie.get(model, tokens)
++        return PromptCacheEntrySnapshot(
++            prompt_cache=entry.prompt_cache,
++            nbytes=entry.nbytes,
++            cache_type=entry.cache_type,
++        )
++
++    def remove(self, model: Any, tokens: List[int]) -> bool:
++        tokens = list(tokens)
++        result = self._cache._trie.search(model, tokens)
++        if result.exact is None:
++            return False
++        entry = self._cache._trie.pop(model, tokens)
++        self._cache._lru.remove(model, tokens)
++        self._cache._n_bytes -= entry.nbytes
++        self._cache._n_bytes_by_type[entry.cache_type] = (
++            self._cache._n_bytes_by_type.get(entry.cache_type, 0) - entry.nbytes
++        )
++        return True
++
++    def restore(
++        self, model: Any, tokens: List[int], snapshot: PromptCacheEntrySnapshot
++    ) -> None:
++        self.remove(model, tokens)
++        self._insert_snapshot(model, list(tokens), snapshot)
++
++    def insert(
++        self, model: Any, tokens: List[int], prompt_cache: List[Any], *, cache_type: str
++    ) -> None:
++        snapshot = PromptCacheEntrySnapshot(
++            prompt_cache=prompt_cache,
++            nbytes=sum(c.nbytes for c in prompt_cache),
++            cache_type=cache_type,
++        )
++        self.restore(model, list(tokens), snapshot)
++
++    def _insert_snapshot(
++        self, model: Any, tokens: List[int], snapshot: PromptCacheEntrySnapshot
++    ) -> None:
++        cache_type = snapshot.cache_type
++        if cache_type not in self._cache._lru._lrus:
++            self._cache._lru._lrus[cache_type] = deque()
++            self._cache._lru._ordering.append(cache_type)
++        self._cache._n_bytes_by_type.setdefault(cache_type, 0)
++        entry = LRUPromptCache.CacheEntry(
++            snapshot.prompt_cache, snapshot.nbytes, cache_type
++        )
++        prev = self._cache._trie.add(model, tokens, entry)
++        if prev is not None:
++            raise RuntimeError("exact storage insert unexpectedly replaced an entry")
++        self._cache._lru.push(model, tokens, cache_type)
++        self._cache._n_bytes += entry.nbytes
++        self._cache._n_bytes_by_type[cache_type] += entry.nbytes
+diff --git a/mlx_lm/server.py b/mlx_lm/server.py
+index d677ca4f93ba672efb3eec4c47c7e40a13b26dfc..7046121c96bc9754fe523af06c58fa3a3786ac92 100644
+--- a/mlx_lm/server.py
++++ b/mlx_lm/server.py
+@@ -2,8 +2,10 @@
+ 
+ import argparse
+ import gc
++import importlib
+ import json
+ import logging
++import os
+ import pickle
+ import platform
+ import socket
+@@ -41,11 +43,66 @@ from .generate import (
+     make_text_state_machine,
+     stream_generate,
+ )
+-from .models.cache import LRUPromptCache, make_prompt_cache
++from .models.cache import LRUPromptCache, can_trim_prompt_cache, make_prompt_cache
+ from .sample_utils import make_logits_processors, make_sampler
+ from .utils import _parse_size, load, sharded_load
+ 
+ 
++STATEBRAID_SERVER_API_VERSION = "0.1"
++_STATEBRAID_ON = os.environ.get("MLX_LM_STATEBRAID") == "1"
++
++
++def _statebraid_cache_namespace(model_key, requested_namespace):
++    cache_module = importlib.import_module("statebraid.cache")
++    trust_domain = (
++        cache_module.DEFAULT_TRUST_DOMAIN
++        if requested_namespace is None
++        else requested_namespace
++    )
++    return cache_module.make_cache_namespace(model_key, trust_domain)
++
++
++def _statebraid_generation_safe_hit(prompt_cache, namespace, prompt, cache, rest):
++    adapter = importlib.import_module("statebraid.adapters.mlx")
++    return adapter.generation_safe_prompt_cache_hit(
++        prompt_cache, namespace, prompt, cache, rest
++    )
++
++
++def _statebraid_insert_stable(prompt_cache, namespace, cache_key, cache):
++    return bool(prompt_cache.insert_stable_candidate(namespace, cache_key, cache))
++
++
++def _statebraid_insert_active(prompt_cache, namespace, cache_key, cache, ctx):
++    predecessor = ctx.prompt[: ctx.prompt_cache_count]
++    return bool(
++        prompt_cache.insert_active_successor(
++            namespace,
++            cache_key,
++            cache,
++            predecessor_tokens=predecessor,
++        )
++    )
++
++
++def _statebraid_hybrid_checkpoint(cache_key, prompt):
++    return len(cache_key) + 1 == len(prompt)
++
++
++def _validate_statebraid_reference_backend():
++    cache_module = importlib.import_module("mlx_lm.models.cache")
++    storage_version = getattr(cache_module, "STATEBRAID_STORAGE_API_VERSION", None)
++    if storage_version != "0.1":
++        raise RuntimeError(
++            "StateBraid requires MLX transactional storage API 0.1; "
++            f"found {storage_version!r}"
++        )
++    statebraid_cache = importlib.import_module("statebraid.cache")
++    importlib.import_module("statebraid.adapters.mlx")
++    if not callable(getattr(statebraid_cache, "make_cache_namespace", None)):
++        raise RuntimeError("installed StateBraid lacks cache namespace support")
++
++
+ def get_system_fingerprint():
+     gpu_arch = mx.device_info()["architecture"]
+     return f"{__version__}-{mx.__version__}-{platform.platform()}-{gpu_arch}"
+@@ -192,6 +249,7 @@ class GenerationArguments:
+     top_logprobs: int
+     seed: Optional[int]
+     chat_template_kwargs: Optional[Dict[str, Any]]
++    cache_namespace: Any = None
+ 
+ 
+ @dataclass
+@@ -693,10 +751,25 @@ class ResponseGenerator:
+                         args.stop_words,
+                     )
+ 
++                    request_cache_namespace = (
++                        _statebraid_cache_namespace(
++                            current_model_key, args.cache_namespace
++                        )
++                        if _STATEBRAID_ON
++                        else current_model_key
++                    )
+                     self._log_cache_stats()
+                     cache, rest = self.prompt_cache.fetch_nearest_cache(
+-                        current_model_key, prompt
++                        request_cache_namespace, prompt
+                     )
++                    if _STATEBRAID_ON:
++                        cache, rest = _statebraid_generation_safe_hit(
++                            self.prompt_cache,
++                            request_cache_namespace,
++                            prompt,
++                            cache,
++                            rest,
++                        )
+                     prompt_cache_count = len(prompt) - len(rest)
+                     N = prompt_cache_count
+                     while N > 0:
+@@ -732,6 +805,8 @@ class ResponseGenerator:
+                         "rqueue": rqueue,
+                         "detokenizer": tokenizer.detokenizer,
+                         "segment_types": segment_types[::-1],
++                        "cache_namespace": request_cache_namespace,
++                        "segment_cache_saved": False,
+                         "top_logprobs": args.top_logprobs,
+                     }
+                     # just making sure we don't leave a reference around
+@@ -806,22 +881,62 @@ class ResponseGenerator:
+                         if result["ctx"]._should_stop:
+                             uids_to_remove.append(r.uid)
+ 
+-                    # Save the caches at end of segments
+-                    eos_ids = [
+-                        r.uid
++                    # StateBraid hybrid mode keeps one mechanically established
++                    # stable prefix plus one generation-safe active tail. Native
++                    # mode retains the upstream segment-cache behavior.
++                    eos_rows = {
++                        r.uid: r
+                         for r in prompt_responses
+                         if r.end_of_segment
+-                        and not r.end_of_prompt
+                         and batch_results[r.uid]["segment_types"]
+-                    ]
+-                    caches = batch_generator.extract_cache(eos_ids)
++                        and (_STATEBRAID_ON or not r.end_of_prompt)
++                    }
++                    caches = batch_generator.extract_cache(list(eos_rows))
+                     for uid, (cache, cache_key) in caches.items():
+-                        self.prompt_cache.insert_cache(
+-                            self.model_provider.model_key,
+-                            cache_key[:],
+-                            cache,
+-                            cache_type=batch_results[uid]["segment_types"].pop(),
+-                        )
++                        result = batch_results[uid]
++                        cache_type = result["segment_types"].pop()
++                        if _STATEBRAID_ON and not can_trim_prompt_cache(cache):
++                            last_typed = not result["segment_types"]
++                            cold_prompt = result["ctx"].prompt_cache_count == 0
++                            saved_stable_now = False
++                            if cold_prompt and not result["segment_cache_saved"]:
++                                if cache_type == "system":
++                                    saved_stable_now = _statebraid_insert_stable(
++                                        self.prompt_cache,
++                                        result["cache_namespace"],
++                                        cache_key[:],
++                                        cache,
++                                    )
++                                else:
++                                    self.prompt_cache.insert_cache(
++                                        result["cache_namespace"],
++                                        cache_key[:],
++                                        cache,
++                                        cache_type=cache_type,
++                                    )
++                                    saved_stable_now = True
++                                result["segment_cache_saved"] = True
++                            if (
++                                last_typed
++                                and not saved_stable_now
++                                and _statebraid_hybrid_checkpoint(
++                                    cache_key, result["ctx"].prompt
++                                )
++                            ):
++                                _statebraid_insert_active(
++                                    self.prompt_cache,
++                                    result["cache_namespace"],
++                                    cache_key[:],
++                                    cache,
++                                    result["ctx"],
++                                )
++                        else:
++                            self.prompt_cache.insert_cache(
++                                result["cache_namespace"],
++                                cache_key[:],
++                                cache,
++                                cache_type=cache_type,
++                            )
+                     del caches
+ 
+                     for r in gen_responses:
+@@ -855,12 +970,31 @@ class ResponseGenerator:
+ 
+                         if r.finish_reason is not None:
+                             result["rqueue"].put(None)
+-                            self.prompt_cache.insert_cache(
+-                                current_model_key,
+-                                r.all_tokens[:],
+-                                r.prompt_cache,
+-                                cache_type="assistant",
+-                            )
++                            if _STATEBRAID_ON:
++                                statebraid_prompt_cache = r.prompt_cache
++                                if statebraid_prompt_cache is None:
++                                    raise RuntimeError(
++                                        "StateBraid generation result is missing prompt cache"
++                                    )
++                                statebraid_all_tokens = r.all_tokens
++                                if statebraid_all_tokens is None:
++                                    raise RuntimeError(
++                                        "StateBraid generation result is missing token history"
++                                    )
++                                if can_trim_prompt_cache(statebraid_prompt_cache):
++                                    self.prompt_cache.insert_cache(
++                                        result["cache_namespace"],
++                                        statebraid_all_tokens[:],
++                                        statebraid_prompt_cache,
++                                        cache_type="assistant",
++                                    )
++                            else:
++                                self.prompt_cache.insert_cache(
++                                    current_model_key,
++                                    r.all_tokens[:],
++                                    r.prompt_cache,
++                                    cache_type="assistant",
++                                )
+                             del batch_results[r.uid]
+ 
+                         if result["ctx"]._should_stop:
+@@ -883,6 +1017,15 @@ class ResponseGenerator:
+     def _serve_single(self, request, stream):
+         rqueue, request, args = request
+ 
++        if _STATEBRAID_ON:
++            rqueue.put(
++                RuntimeError(
++                    "StateBraid MLX reference integration supports the batch path only"
++                )
++            )
++            rqueue.put(None)
++            return
++
+         # Define the progress callback
+         def progress(tokens_processed, tokens_total):
+             rqueue.put((tokens_processed, tokens_total))
+@@ -1155,6 +1298,7 @@ class APIHandler(BaseHTTPRequestHandler):
+         self.top_logprobs = self.body.get("top_logprobs", -1)
+         self.seed = self.body.get("seed", None)
+         self.chat_template_kwargs = self.body.get("chat_template_kwargs")
++        self.cache_namespace = self.body.get("cache_namespace", None)
+         self.validate_model_parameters()
+ 
+         # Get stop sequences
+@@ -1215,6 +1359,10 @@ class APIHandler(BaseHTTPRequestHandler):
+         self._validate("seed", int, optional=True)
+         self._validate("logit_bias", dict, optional=True)
+ 
++        if _STATEBRAID_ON and self.cache_namespace is not None:
++            cache_module = importlib.import_module("statebraid.cache")
++            cache_module.validate_trust_domain(self.cache_namespace)
++
+         if self.logit_bias is not None:
+             try:
+                 self.logit_bias = {int(k): float(v) for k, v in self.logit_bias.items()}
+@@ -1371,6 +1519,7 @@ class APIHandler(BaseHTTPRequestHandler):
+             top_logprobs=self.top_logprobs,
+             seed=self.seed,
+             chat_template_kwargs=self.chat_template_kwargs,
++            cache_namespace=self.cache_namespace,
+         )
+ 
+         # Keep connection allive during long prompt processing (and also log
+@@ -1729,7 +1878,31 @@ def run(
+     handler_class=APIHandler,
+ ):
+     group = mx.distributed.init()
+-    prompt_cache = LRUPromptCache(model_provider.cli_args.prompt_cache_size)
++    prompt_cache_bytes = getattr(model_provider.cli_args, "prompt_cache_bytes", None)
++    cache_kwargs = {}
++    if prompt_cache_bytes is not None:
++        cache_kwargs["max_bytes"] = prompt_cache_bytes
++    if _STATEBRAID_ON:
++        _validate_statebraid_reference_backend()
++        adapter = importlib.import_module("statebraid.adapters.mlx")
++        storage_cache = LRUPromptCache(
++            model_provider.cli_args.prompt_cache_size, **cache_kwargs
++        )
++        prompt_cache = adapter.MLXStateBraidPromptCache(
++            storage_cache,
++            max_sequences=model_provider.cli_args.prompt_cache_size,
++            max_bytes=(
++                prompt_cache_bytes if prompt_cache_bytes is not None else 1 << 63
++            ),
++        )
++        logging.info(
++            "Prompt cache policy: StateBraid reference integration "
++            f"(sequences={prompt_cache.max_size}, bytes={prompt_cache.max_bytes})"
++        )
++    else:
++        prompt_cache = LRUPromptCache(
++            model_provider.cli_args.prompt_cache_size, **cache_kwargs
++        )
+     response_generator = ResponseGenerator(model_provider, prompt_cache)
+     if group.rank() == 0:
+         _run_http_server(host, port, response_generator)

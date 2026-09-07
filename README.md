@@ -61,6 +61,44 @@ StateBraid v0.1 is **not**:
 - a hidden-chain-of-thought persistence system;
 - a replacement for the agent harness or tool layer.
 
+## v0.1 reference distribution path
+
+StateBraid is an independent Python package; it does not vendor the research
+MLX-LM fork. The first backend distribution is a version-bound reference patch
+against clean upstream `ml-explore/mlx-lm` commit
+`6d21ce4b065a2e163fa6de76a9936c61aeb5784a`.
+
+Install StateBraid from the current checkout or a built wheel, then export its
+packaged reference integration:
+
+```bash
+python -m pip install .
+statebraid-reference mlx --output statebraid-mlx.patch
+```
+
+Apply that patch only to the exact qualified MLX-LM base, make the patched MLX
+package importable in the server environment, and require the compatibility gate
+before activation:
+
+```bash
+statebraid-doctor mlx
+```
+
+StateBraid activation remains explicit and default-off:
+
+```bash
+MLX_LM_STATEBRAID=1 python -m mlx_lm.server --model <model> ...
+```
+
+Rollback is mechanical: stop the server, unset `MLX_LM_STATEBRAID`, and restart
+the patched backend on its native `LRUPromptCache` path. A request may provide
+`cache_namespace`; multi-tenant callers must have a trusted authenticated layer
+derive that value rather than accepting an arbitrary tenant name from an
+untrusted client.
+
+See [`docs/DISTRIBUTION_BOUNDARY.md`](docs/DISTRIBUTION_BOUNDARY.md) for the exact
+patch SHA256, compatibility API markers, apply procedure, and security boundary.
+
 ## Current status
 
 Phase 1 extracted compute continuity into a backend-neutral core. The repository
@@ -114,6 +152,7 @@ See:
 - [`docs/PHASE1_6_2_REAL_INTEGRATION_QUALIFICATION.md`](docs/PHASE1_6_2_REAL_INTEGRATION_QUALIFICATION.md)
 - [`docs/COMPUTE_FREEZE_V0_1.md`](docs/COMPUTE_FREEZE_V0_1.md)
 - [`docs/TRUST_DOMAIN_BOUNDARY.md`](docs/TRUST_DOMAIN_BOUNDARY.md)
+- [`docs/DISTRIBUTION_BOUNDARY.md`](docs/DISTRIBUTION_BOUNDARY.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`SECURITY.md`](SECURITY.md)
