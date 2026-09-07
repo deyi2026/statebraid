@@ -7,6 +7,8 @@ from .llama_cpp import (
     LlamaCppReuseHandle,
     LlamaCppReuseStats,
     llama_cpp_cache_namespace,
+    llama_cpp_reference_source_match,
+    llama_cpp_source_commit,
     normalize_llama_cpp_reuse,
 )
 
@@ -20,6 +22,8 @@ from .mlx import (
 __all__ = [
     "normalize_llama_cpp_reuse",
     "llama_cpp_cache_namespace",
+    "llama_cpp_reference_source_match",
+    "llama_cpp_source_commit",
     "LlamaCppReuseStats",
     "LlamaCppReuseHandle",
     "LlamaCppHTTPAdapter",

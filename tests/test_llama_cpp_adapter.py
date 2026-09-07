@@ -18,15 +18,18 @@ from statebraid.backend import (
 class FakeTransport:
     def __init__(self):
         self.get_result = [{"id": 0, "is_processing": False}]
+        self.props_result = {"build_info": "b999-465e49b9", "total_slots": 1}
         self.gets = []
         self.post_results = []
         self.posts = []
 
     def get_json(self, path):
-        if path != "/slots":
-            raise AssertionError(path)
         self.gets.append(path)
-        return self.get_result
+        if path == "/props":
+            return self.props_result
+        if path == "/slots":
+            return self.get_result
+        raise AssertionError(path)
 
     def post_json(self, path, payload):
         if path != "/completion":
@@ -131,6 +134,7 @@ class LlamaCppAdapterTest(unittest.TestCase):
     def test_http_adapter_rejects_upstream_slot_wrapping(self):
         transport = FakeTransport()
         transport.get_result = [{"id": 0}, {"id": 1}]
+        transport.props_result["total_slots"] = 2
         adapter = LlamaCppHTTPAdapter(id_slot=3, transport=transport)
         with self.assertRaisesRegex(ValueError, "modulo slot wrapping"):
             adapter.lookup(adapter.namespace, [1, 2, 3])
@@ -142,6 +146,7 @@ class LlamaCppAdapterTest(unittest.TestCase):
             {"timings": {"cache_n": 2, "prompt_n": 1}}
         )
         transport.get_result = [{"id": 0}, {"id": 2}]
+        transport.props_result["total_slots"] = 2
         adapter = LlamaCppHTTPAdapter(
             "http://llama.local:8080", id_slot=2, transport=transport
         )
@@ -160,6 +165,22 @@ class LlamaCppAdapterTest(unittest.TestCase):
                 }
             ],
         )
+
+    def test_http_adapter_rejects_unaudited_source_before_completion(self):
+        transport = FakeTransport()
+        transport.props_result["build_info"] = "b1000-deadbee"
+        adapter = LlamaCppHTTPAdapter(transport=transport)
+        with self.assertRaisesRegex(UnsupportedBackendCapability, "not the audited"):
+            adapter.lookup(adapter.namespace, [1, 2, 3])
+        self.assertEqual(transport.posts, [])
+
+    def test_http_adapter_requires_props_slots_consistency(self):
+        transport = FakeTransport()
+        transport.props_result["total_slots"] = 2
+        adapter = LlamaCppHTTPAdapter(transport=transport)
+        with self.assertRaisesRegex(UnsupportedBackendCapability, "total_slots"):
+            adapter.lookup(adapter.namespace, [1, 2, 3])
+        self.assertEqual(transport.posts, [])
 
     def test_generation_safe_exact_accepts_replay_or_full_recompute(self):
         transport = FakeTransport()
