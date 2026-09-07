@@ -245,3 +245,8 @@ raises llama.cpp from a tiny-model proof to a real-model **candidate** profile, 
 it intentionally leaves `runtime_qualified=false`. llama.cpp remains outside v0.1
 reference support unless and until a later protected release explicitly widens the
 production support matrix.
+
+An experimental managed-RAM path now exists separately from this stock Phase 8
+adapter. Its interface, transactional boundary, evidence, and non-promotion rules
+are documented in `LLAMA_CPP_MANAGED_STORAGE_M1.md`. The existence of that M1 path
+does not change the stock descriptor or the v0.1 supported scope.
