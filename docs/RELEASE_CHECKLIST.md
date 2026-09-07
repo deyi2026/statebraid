@@ -23,9 +23,9 @@ mechanical evidence; prose confidence is not a substitute.
 
 ## Licensing and package metadata
 
-- [ ] `LICENSE` contains the StateBraid MIT license;
+- [ ] `LICENSE` contains the canonical Apache License 2.0 text;
 - [ ] `THIRD_PARTY_NOTICES.md` retains the Apple Inc. mlx-lm MIT notice;
-- [ ] `pyproject.toml` declares SPDX `license = "MIT"`;
+- [ ] `pyproject.toml` declares SPDX `license = "Apache-2.0"`;
 - [ ] PEP 639 `license-files` includes both legal files;
 - [ ] project version equals `statebraid.__version__`;
 - [ ] README long description, authors, project URLs, keywords and Python
@@ -35,7 +35,7 @@ mechanical evidence; prose confidence is not a substitute.
 ## Built artifacts
 
 - [ ] wheel and sdist build from a fresh checkout of the candidate SHA;
-- [ ] wheel metadata has `License-Expression: MIT`;
+- [ ] wheel metadata has `License-Expression: Apache-2.0`;
 - [ ] wheel metadata lists both legal files with `License-File` headers;
 - [ ] wheel physically contains both legal files;
 - [ ] sdist physically contains both legal files;

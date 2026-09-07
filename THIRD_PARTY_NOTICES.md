@@ -28,8 +28,8 @@ The optional MLX adapter and the exact-hit generation-safety behavior are derive
 > OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 > SOFTWARE.
 
-StateBraid itself is distributed under the MIT License in `LICENSE`. The Apple
+StateBraid itself is distributed under the Apache License 2.0 in `LICENSE`. The Apple
 notice above is retained separately because the optional MLX adapter, exact-hit
 generation-safety work, and packaged reference integration were derived from work
-performed against mlx-lm. StateBraid's MIT license does not replace or erase the
-upstream copyright and permission notice.
+performed against mlx-lm. StateBraid's Apache-2.0 license does not replace or erase
+the upstream MIT copyright and permission notice.
