@@ -17,12 +17,16 @@ upstream source:
 - upstream llama.cpp base: `465e49b9cea78a68b9c244ffb48d0ee24a82873d`;
 - managed handle implementation: `29cad05988c9c48ee26ded83764ae70ae6edf665`;
 - exclusive-policy `clear` primitive: `6e7d910135a4ef586aa89b41e2ceaa2058b2defa`;
+- loopback-only control-plane hardening: `0f75058ccb5c4e0d7bd029d37678435eb0d2458c`;
 - StateBraid adapter requires `build_info` matching the final
-  `6e7d910135a4ef586aa89b41e2ceaa2058b2defa` reference.
+  `0f75058ccb5c4e0d7bd029d37678435eb0d2458c` reference.
 
 The patch is opt-in through `--statebraid-managed-cache`. Startup fails closed if
 native `--cache-ram` is non-zero, preventing two independent admission/eviction
-policies from running at once.
+policies from running at once. M1 also fails closed unless `--host` is loopback
+(`localhost`, `127.0.0.1`, or `::1`). The StateBraid adapter independently enforces
+the same loopback-only base-URL boundary. Authenticated remote transport remains a
+separate qualification task.
 
 ## Managed server contract
 
@@ -52,7 +56,10 @@ the operating system.
 The managed integration lives in `statebraid.adapters.llama_cpp_managed`; the
 stock `statebraid.adapters.llama_cpp` observation adapter remains unchanged.
 
-The M1 descriptor declares:
+M1 exposes two machine-readable capability layers. The low-level storage adapter
+declares only `transactional_mutation`; it intentionally rejects direct prefix
+lookup so callers cannot bypass StateBraid's residency choice. The managed facade
+declares:
 
 - `prefix_lookup`;
 - `admission_residency`;
@@ -108,6 +115,12 @@ Before every managed request, StateBraid issues `clear(id_slot)` even when it
 chooses to restore no state. This prevents the previous live slot from becoming a
 second, hidden residency policy.
 
+Candidate restore is not counted as a hit. The facade performs the bounded
+`/completion` probe after `clear -> select -> restore`, verifies that factual
+`timings.cache_n` does not exceed the selected exact-token LCP, and only then
+credits the resident state when `cache_n > 0`. A non-zero cache result when no
+handle was selected is treated as hidden reuse and fails closed.
+
 ## Deterministic qualification
 
 The llama.cpp branch includes a tiny-model server test that does not depend on the
@@ -115,28 +128,38 @@ The llama.cpp branch includes a tiny-model server test that does not depend on t
 
 - opt-in disabled behavior;
 - native-RAM/managed split-brain startup rejection;
+- non-loopback bind rejection;
 - capture/list/drop lifecycle;
 - repeated non-destructive restore;
 - invalid/stale epoch, invalid slot, unknown handle, malformed request and empty
   capture fail-closed behavior;
 - restart epoch invalidation.
 
-Current result: **5/5 PASS**. Adjacent upstream slot save/restore, slot erase, and
+Current result: **6/6 PASS**. Adjacent upstream slot save/restore, slot erase, and
 native RAM clear/restore tests also pass when run in isolated processes.
 
-StateBraid adapter tests additionally inject transaction failures and verify that
-the old registry is rolled back while the new unbound remote handle is removed.
-The complete StateBraid suite remains green after the integration.
+StateBraid adapter tests additionally inject transaction failures, hidden-reuse
+and LCP-overclaim observations, response loss after physical drop, and unresolved
+physical GC. The old registry is restored on pre-commit failure, new unbound
+handles are removed, unresolved GC blocks new capture, and policy hit accounting
+is driven only by factual completion telemetry. The managed/stock/policy target
+set is **44 PASS** and the complete StateBraid suite is **129 PASS / 5 skipped /
+100 subtests PASS** after the integration hardening.
 
 ## Real server evidence
 
-A real tiny llama-server built from `6e7d910135a4ef586aa89b41e2ceaa2058b2defa`
-was driven through the StateBraid managed adapter on one isolated slot. A
-377-token stable state was captured, the live slot was cleared, and a 406-token
-extension restored the stable state with:
+A real tiny llama-server built from the final loopback-hardened M1 source
+`0f75058ccb5c4e0d7bd029d37678435eb0d2458c` was driven through the formal
+StateBraid managed facade on one isolated slot. A 433-token stable state was
+captured, then a 470-token extension executed through the facade's atomic
+`clear -> select -> restore -> completion -> factual-hit` path with:
 
-- `cache_n = 377`;
-- `prompt_n = 29`.
+- `cache_n = 433`;
+- `prompt_n = 37`.
+
+The stable entry remained at zero policy hits after cold execution, capture, and
+restore; it advanced to one hit only after the completion response reported
+`cache_n = 433`.
 
 After admitting both stable and active states, `trim_to(n_sequences=1)` reduced
 the physical server store to one handle. The server-reported payload bytes and

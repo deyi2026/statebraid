@@ -6,15 +6,18 @@ StateBraid policy ownership distinct from llama.cpp execution/storage mechanics.
 """
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+import ipaddress
+from collections.abc import Hashable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 from statebraid.backend import (
     BackendCapability,
     BackendDescriptor,
     BackendObservationProfile,
     BackendQualificationProfile,
+    LookupObservation,
     ObservationMode,
     UnsupportedBackendCapability,
 )
@@ -26,7 +29,28 @@ from .llama_cpp import (
     llama_cpp_source_commit,
 )
 
-LLAMA_CPP_MANAGED_REFERENCE_SHA = "6e7d910135a4ef586aa89b41e2ceaa2058b2defa"
+LLAMA_CPP_MANAGED_REFERENCE_SHA = "0f75058ccb5c4e0d7bd029d37678435eb0d2458c"
+
+LLAMA_CPP_MANAGED_STORAGE_DESCRIPTOR = BackendDescriptor(
+    name="llama.cpp-managed-storage-m1",
+    adapter="statebraid.adapters.llama_cpp_managed",
+    capabilities=frozenset({BackendCapability.TRANSACTIONAL_MUTATION}),
+    qualification_profile=BackendQualificationProfile(
+        source_revision=(
+            f"llama.cpp@{LLAMA_CPP_REFERENCE_SHA} + StateBraid managed-storage "
+            f"M1@{LLAMA_CPP_MANAGED_REFERENCE_SHA}"
+        ),
+        observation_path="managed /statebraid/cache clear/capture/restore/drop",
+        cache_mode="StateBraid exclusive policy; native --cache-ram must be 0",
+        concurrency_profile="loopback-only, single slot / serial M1 prototype",
+        model_class="real Qwen3.6-derived GGUF M1 evidence + tiny deterministic server tests",
+        runtime_qualified=False,
+        notes=(
+            "Low-level storage mechanics only; policy lookup must go through the managed facade.",
+            "Full physical rollback and trust-domain namespace isolation are not declared.",
+        ),
+    ),
+)
 
 LLAMA_CPP_MANAGED_BACKEND_DESCRIPTOR = BackendDescriptor(
     name="llama.cpp-managed-m1",
@@ -58,7 +82,7 @@ LLAMA_CPP_MANAGED_BACKEND_DESCRIPTOR = BackendDescriptor(
             "/completion timings.cache_n"
         ),
         cache_mode="StateBraid exclusive policy; native --cache-ram must be 0",
-        concurrency_profile="single slot / serial M1 prototype",
+        concurrency_profile="loopback-only, single slot / serial M1 prototype",
         model_class="real Qwen3.6-derived GGUF M1 evidence + tiny deterministic server tests",
         runtime_qualified=False,
         notes=(
@@ -114,11 +138,26 @@ class LlamaCppManagedRestore:
 
 
 class LlamaCppManagedHTTPAdapter(LlamaCppHTTPAdapter):
-    """M1 HTTP adapter for externally managed llama.cpp RAM residency."""
+    """Low-level M1 HTTP transport for opaque llama.cpp RAM state mechanics."""
 
-    descriptor = LLAMA_CPP_MANAGED_BACKEND_DESCRIPTOR
+    descriptor = LLAMA_CPP_MANAGED_STORAGE_DESCRIPTOR
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        # Loopback/scheme gate BEFORE the stock constructor (J-round review):
+        # reject non-loopback base_url before the parent sets up transport.
+        base_url = str(kwargs.get("base_url", args[0] if args else ""))
+        parsed = urlparse(base_url)
+        hostname = parsed.hostname or ""
+        is_loopback = hostname.lower() == "localhost"
+        if not is_loopback:
+            try:
+                is_loopback = ipaddress.ip_address(hostname).is_loopback
+            except ValueError:
+                is_loopback = False
+        if parsed.scheme not in {"http", "https"} or not is_loopback:
+            raise UnsupportedBackendCapability(
+                "llama.cpp managed-storage M1 is qualified only through a loopback base_url"
+            )
         super().__init__(*args, **kwargs)
         total_slots = self._require_reference_source()
         self._require_exact_slot(total_slots=total_slots)
@@ -267,6 +306,26 @@ class LlamaCppManagedHTTPAdapter(LlamaCppHTTPAdapter):
         if state.id_slot != self.id_slot:
             raise ValueError("managed handle belongs to a different llama.cpp slot")
 
+    def lookup(
+        self,
+        namespace: Hashable,
+        tokens: Sequence[int],
+    ) -> LookupObservation:
+        del namespace, tokens
+        raise UnsupportedBackendCapability(
+            "low-level llama.cpp managed-storage adapter does not expose policy-safe "
+            "prefix lookup; use LlamaCppStateBraidPromptCache.lookup()"
+        )
+
+    def _lookup_after_policy(
+        self,
+        namespace: Hashable,
+        tokens: Sequence[int],
+    ) -> LookupObservation:
+        """Run the factual bounded completion probe after facade policy preparation."""
+
+        return super().lookup(namespace, tokens)
+
     def restore_state(self, state: LlamaCppManagedStateHandle) -> None:
         self._require_state_binding(state)
         response = self._post_managed(
@@ -312,14 +371,15 @@ class LlamaCppManagedHTTPAdapter(LlamaCppHTTPAdapter):
 
 
 class LlamaCppManagedStorageBackend:
-    """Rollback-safe CacheKey registry over server-side managed RAM handles.
+    """Registry-rollback-safe CacheKey bindings over managed RAM handles.
 
     Coordinator mutation changes only local key bindings. Physical drops are
-    deferred until the policy transaction has committed, so rollback never
-    requires copying llama.cpp KV/SSM bytes into Python.
+    deferred until the policy transaction has committed, so local mutation
+    rollback never requires copying llama.cpp KV/SSM bytes into Python. This is
+    intentionally narrower than Backend Contract physical ``ROLLBACK``.
     """
 
-    descriptor = LLAMA_CPP_MANAGED_BACKEND_DESCRIPTOR
+    descriptor = LLAMA_CPP_MANAGED_STORAGE_DESCRIPTOR
 
     def __init__(
         self,
@@ -580,12 +640,57 @@ class LlamaCppStateBraidPromptCache:
         _, _, _, key = max(candidates, key=lambda item: item[:3])
         matched = _token_lcp(key.tokens, prompt)
         state = self.backend.restore_live(key)
-        self.coordinator.observe_hit(key)
         return LlamaCppManagedRestore(
             key=key,
             state=state,
             candidate_lcp=matched,
         )
+
+    def lookup(
+        self,
+        namespace: Hashable,
+        tokens: Sequence[int],
+    ) -> LookupObservation:
+        if namespace != self.namespace:
+            raise UnsupportedBackendCapability(
+                "managed llama.cpp facade is bound to one local-default namespace"
+            )
+        prompt = tuple(int(token) for token in tokens)
+        if not prompt:
+            raise ValueError("managed llama.cpp lookup requires a non-empty prompt")
+
+        prepared = self.prepare(prompt)
+        observation = self.adapter._lookup_after_policy(self.namespace, prompt)
+
+        if prepared is None:
+            if observation.matched_tokens != 0:
+                raise RuntimeError(
+                    "llama.cpp reported cache reuse after StateBraid selected no "
+                    "resident handle; hidden live-slot/cache reuse detected"
+                )
+            return observation
+
+        if observation.matched_tokens > prepared.candidate_lcp:
+            raise RuntimeError(
+                "llama.cpp reported reuse beyond the StateBraid-selected exact-token "
+                f"LCP: observed={observation.matched_tokens}, "
+                f"selected_lcp={prepared.candidate_lcp}"
+            )
+        if observation.matched_tokens > 0:
+            self.coordinator.observe_hit(prepared.key)
+        return observation
+
+    def generation_safe_exact(
+        self,
+        namespace: Hashable,
+        tokens: Sequence[int],
+    ) -> LookupObservation:
+        observation = self.lookup(namespace, tokens)
+        if not observation.remaining:
+            raise ValueError(
+                "llama.cpp managed exact reuse exposed an empty generation input"
+            )
+        return observation
 
     def trim_to(
         self, *, n_sequences: int | None = None, n_bytes: int | None = None
@@ -615,6 +720,7 @@ class LlamaCppStateBraidPromptCache:
 __all__ = [
     "LLAMA_CPP_MANAGED_BACKEND_DESCRIPTOR",
     "LLAMA_CPP_MANAGED_REFERENCE_SHA",
+    "LLAMA_CPP_MANAGED_STORAGE_DESCRIPTOR",
     "LlamaCppManagedHTTPAdapter",
     "LlamaCppManagedRestore",
     "LlamaCppManagedStateHandle",

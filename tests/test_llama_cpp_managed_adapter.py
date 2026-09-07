@@ -3,6 +3,7 @@ import unittest
 from statebraid.adapters.llama_cpp_managed import (
     LLAMA_CPP_MANAGED_BACKEND_DESCRIPTOR,
     LLAMA_CPP_MANAGED_REFERENCE_SHA,
+    LLAMA_CPP_MANAGED_STORAGE_DESCRIPTOR,
     LlamaCppManagedHTTPAdapter,
     LlamaCppManagedStateHandle,
     LlamaCppStateBraidPromptCache,
@@ -129,12 +130,20 @@ class FakeManagedTransport:
 class LlamaCppManagedAdapterTest(unittest.TestCase):
     def adapter(self, transport=None):
         return LlamaCppManagedHTTPAdapter(
-            "http://llama-managed.local:8080",
+            "http://127.0.0.1:18080",
             id_slot=0,
             transport=transport or FakeManagedTransport(),
         )
 
     def test_descriptor_declares_managed_mechanics_without_namespace_claim(self):
+        storage = LLAMA_CPP_MANAGED_STORAGE_DESCRIPTOR
+        self.assertTrue(storage.supports(BackendCapability.TRANSACTIONAL_MUTATION))
+        self.assertFalse(storage.supports(BackendCapability.PREFIX_LOOKUP))
+        self.assertFalse(storage.supports(BackendCapability.ADMISSION_RESIDENCY))
+        self.assertFalse(storage.supports(BackendCapability.ROLLBACK))
+        self.assertFalse(storage.supports(BackendCapability.NAMESPACE_ISOLATION))
+        self.assertFalse(storage.qualification_profile.runtime_qualified)
+
         descriptor = LLAMA_CPP_MANAGED_BACKEND_DESCRIPTOR
         self.assertTrue(
             descriptor.supports(
@@ -167,6 +176,11 @@ class LlamaCppManagedAdapterTest(unittest.TestCase):
         with self.assertRaises(UnsupportedBackendCapability):
             LlamaCppManagedHTTPAdapter(
                 transport=FakeManagedTransport(), trust_domain="tenant-a"
+            )
+
+        with self.assertRaisesRegex(UnsupportedBackendCapability, "loopback"):
+            LlamaCppManagedHTTPAdapter(
+                "http://10.0.0.8:8080", transport=FakeManagedTransport()
             )
 
     def test_low_level_handle_lifecycle_and_epoch_binding(self):
@@ -245,6 +259,7 @@ class LlamaCppManagedAdapterTest(unittest.TestCase):
         self.assertEqual(restored.key.tokens, (1, 2))
         self.assertEqual(restored.candidate_lcp, 2)
         self.assertEqual([row[0] for row in transport.actions], ["clear", "restore"])
+        self.assertEqual(cache.policy.capture_state().entries[restored.key].hits, 0)
 
     def test_prepare_with_no_candidate_still_clears_live_slot(self):
         transport = FakeManagedTransport()
@@ -317,15 +332,83 @@ class LlamaCppManagedAdapterTest(unittest.TestCase):
         self.assertEqual(state.nbytes, 100)
         self.assertEqual(cache.backend.pending_drop_count, 0)
 
-    def test_managed_lookup_keeps_actual_prefix_generation_evidence(self):
+    def test_low_level_adapter_rejects_policy_bypass_lookup(self):
+        adapter = self.adapter(FakeManagedTransport())
+        with self.assertRaisesRegex(UnsupportedBackendCapability, "policy-safe"):
+            adapter.lookup(adapter.namespace, [5, 6, 7])
+
+    def test_managed_facade_lookup_keeps_actual_prefix_generation_evidence(self):
         transport = FakeManagedTransport()
+        cache = LlamaCppStateBraidPromptCache(
+            self.adapter(transport), max_sequences=2, max_bytes=1000
+        )
+        transport.capture_queue.append((2, 80))
+        self.assertTrue(cache.capture_and_admit([5, 6], role="stable"))
         transport.completion_queue.append(
             {"timings": {"cache_n": 2, "prompt_n": 1}}
         )
-        adapter = self.adapter(transport)
-        observation = adapter.lookup(adapter.namespace, [5, 6, 7])
+        observation = cache.lookup(cache.namespace, [5, 6, 7])
         self.assertEqual(observation.matched_tokens, 2)
         self.assertEqual(observation.remaining, (7,))
+        key = next(iter(cache.policy.capture_state().entries))
+        self.assertEqual(cache.policy.capture_state().entries[key].hits, 1)
+        self.assertEqual(
+            [row[0] for row in transport.actions[-3:]],
+            ["clear", "restore", "completion"],
+        )
+
+    def test_managed_facade_rejects_hidden_reuse_without_selected_handle(self):
+        transport = FakeManagedTransport()
+        cache = LlamaCppStateBraidPromptCache(
+            self.adapter(transport), max_sequences=2, max_bytes=1000
+        )
+        transport.completion_queue.append(
+            {"timings": {"cache_n": 1, "prompt_n": 2}}
+        )
+        with self.assertRaisesRegex(RuntimeError, "selected no resident handle"):
+            cache.lookup(cache.namespace, [1, 2, 3])
+
+    def test_managed_facade_rejects_reuse_beyond_selected_lcp(self):
+        transport = FakeManagedTransport()
+        cache = LlamaCppStateBraidPromptCache(
+            self.adapter(transport), max_sequences=2, max_bytes=1000
+        )
+        transport.capture_queue.append((2, 80))
+        self.assertTrue(cache.capture_and_admit([1, 2], role="stable"))
+        transport.completion_queue.append(
+            {"timings": {"cache_n": 2, "prompt_n": 1}}
+        )
+        with self.assertRaisesRegex(RuntimeError, "selected exact-token LCP"):
+            cache.lookup(cache.namespace, [1, 9, 10])
+
+    def test_restore_without_actual_reuse_does_not_increment_hit_count(self):
+        transport = FakeManagedTransport()
+        cache = LlamaCppStateBraidPromptCache(
+            self.adapter(transport), max_sequences=2, max_bytes=1000
+        )
+        transport.capture_queue.append((2, 80))
+        self.assertTrue(cache.capture_and_admit([1, 2], role="stable"))
+        key = next(iter(cache.policy.capture_state().entries))
+        transport.completion_queue.append(
+            {"timings": {"cache_n": 0, "prompt_n": 3}}
+        )
+        observation = cache.lookup(cache.namespace, [1, 2, 3])
+        self.assertEqual(observation.matched_tokens, 0)
+        self.assertEqual(cache.policy.capture_state().entries[key].hits, 0)
+
+    def test_generation_safe_exact_uses_facade_policy_path(self):
+        transport = FakeManagedTransport()
+        cache = LlamaCppStateBraidPromptCache(
+            self.adapter(transport), max_sequences=2, max_bytes=1000
+        )
+        transport.capture_queue.append((3, 100))
+        self.assertTrue(cache.capture_and_admit([1, 2, 3], role="stable"))
+        transport.completion_queue.append(
+            {"timings": {"cache_n": 2, "prompt_n": 1}}
+        )
+        observation = cache.generation_safe_exact(cache.namespace, [1, 2, 3])
+        self.assertEqual(observation.matched_tokens, 2)
+        self.assertEqual(observation.remaining, (3,))
 
 
 if __name__ == "__main__":
