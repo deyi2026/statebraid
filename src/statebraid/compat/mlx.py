@@ -7,6 +7,9 @@ import importlib.metadata
 from dataclasses import asdict, dataclass
 from typing import Any, Callable
 
+from statebraid.adapters.mlx import MLX_BACKEND_DESCRIPTOR
+from statebraid.backend import BACKEND_CONTRACT_VERSION, capability_values
+
 REQUIRED_MLX_STORAGE_API_VERSION = "0.1"
 REQUIRED_MLX_SERVER_API_VERSION = "0.1"
 
@@ -21,6 +24,11 @@ class MLXCompatibilityReport:
     transactional_storage: bool
     request_namespace: bool
     issues: tuple[str, ...]
+    backend_contract_version: str = BACKEND_CONTRACT_VERSION
+    declared_capabilities: tuple[str, ...] = capability_values(
+        MLX_BACKEND_DESCRIPTOR.capabilities
+    )
+    integration_level: str = MLX_BACKEND_DESCRIPTOR.integration_level
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -45,18 +53,25 @@ def probe_mlx_backend(
     activation, or request-scoped namespace boundary.
     """
 
+    version = version_reader()
     try:
         cache_module = importer("mlx_lm.models.cache")
-    except (ImportError, ModuleNotFoundError):
+    except Exception as exc:
+        missing = isinstance(exc, (ImportError, ModuleNotFoundError))
+        issue = (
+            "mlx-lm is not importable"
+            if missing
+            else f"mlx-lm cache import failed: {type(exc).__name__}: {exc}"
+        )
         return MLXCompatibilityReport(
-            installed=False,
+            installed=(version is not None or not missing),
             compatible=False,
-            mlx_lm_version=version_reader(),
+            mlx_lm_version=version,
             storage_api_version=None,
             server_api_version=None,
             transactional_storage=False,
             request_namespace=False,
-            issues=("mlx-lm is not importable",),
+            issues=(issue,),
         )
 
     issues: list[str] = []
@@ -76,8 +91,11 @@ def probe_mlx_backend(
 
     try:
         server_module = importer("mlx_lm.server")
-    except (ImportError, ModuleNotFoundError):
+    except Exception as exc:
         server_module = None
+        issues.append(
+            f"mlx-lm server import failed: {type(exc).__name__}: {exc}"
+        )
 
     server_api = (
         getattr(server_module, "STATEBRAID_SERVER_API_VERSION", None)
@@ -102,7 +120,7 @@ def probe_mlx_backend(
     return MLXCompatibilityReport(
         installed=True,
         compatible=not issues,
-        mlx_lm_version=version_reader(),
+        mlx_lm_version=version,
         storage_api_version=storage_api,
         server_api_version=server_api,
         transactional_storage=transactional,

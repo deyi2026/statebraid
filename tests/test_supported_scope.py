@@ -5,7 +5,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from statebraid import COMPUTE_CONTRACT_VERSION, SUPPORT_SCOPE_VERSION
+from statebraid import BACKEND_CONTRACT_VERSION, COMPUTE_CONTRACT_VERSION, SUPPORT_SCOPE_VERSION
 from statebraid.doctor import main as doctor_main
 from statebraid.integrations.mlx import REFERENCE_MLX_BASE_SHA, REFERENCE_PATCH_SHA256
 from statebraid.support import (
@@ -29,8 +29,15 @@ ROOT = Path(__file__).resolve().parents[1]
 class SupportedScopeContractTest(unittest.TestCase):
     def test_scope_version_is_additive_to_frozen_compute_contract(self) -> None:
         self.assertEqual(COMPUTE_CONTRACT_VERSION, "0.1")
+        self.assertEqual(BACKEND_CONTRACT_VERSION, "0.2")
         self.assertEqual(SUPPORT_SCOPE_VERSION, "0.1")
         self.assertEqual(SUPPORT_SCOPE_VERSION_DIRECT, SUPPORT_SCOPE_VERSION)
+        core = support_scope()["core_contract"]
+        self.assertEqual(core["backend_contract_version"], "0.2")
+        self.assertIn("model execution", core["backend_owns"])
+        self.assertIn(
+            "exact namespace + token cache identity", core["statebraid_owns"]
+        )
 
     def test_reference_runtime_is_narrow_and_exact(self) -> None:
         scope = support_scope()

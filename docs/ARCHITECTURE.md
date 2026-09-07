@@ -97,6 +97,24 @@ Compute-facing benchmark metrics should report at least:
 - TTFT only when it is truly measured, never inferred from full request latency;
 - worker health/fatal conditions.
 
+## Backend Contract v0.2
+
+The serving boundary is capability-based rather than MLX-shaped.
+`statebraid.backend` defines independent namespace, lookup, admission/residency,
+transaction/rollback, hit-attribution, and generation-safety capabilities plus a
+reusable conformance framework. A backend can expose a safe subset; StateBraid does
+not infer support for undeclared mechanics.
+
+The ownership line is strict: **StateBraid owns compute-continuity semantics and
+policy; the backend owns model execution and KV storage/transport.** StateBraid
+therefore coordinates only the cache lifecycle a backend explicitly delegates and
+does not implement attention kernels, batching schedulers, distributed KV movement,
+or storage tiers.
+
+Backend capability declaration and runtime qualification are separate facts. A new
+backend can pass a subset of v0.2 conformance without becoming a supported v0.1
+runtime profile. See [`BACKEND_CONTRACT_V0_2.md`](BACKEND_CONTRACT_V0_2.md).
+
 The current runtime support claim is intentionally narrower than this
 backend-neutral architecture. The exact qualified MLX base, model/cache shape,
 platform, concurrency profile, trust-domain conditions, and unqualified modes are

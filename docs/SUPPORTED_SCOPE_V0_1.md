@@ -1,5 +1,10 @@
 # StateBraid v0.1 Supported Scope
 
+> **Backend Contract note:** Backend Contract v0.2 is additive adapter mechanics,
+> not a broader runtime support claim. `statebraid-doctor contract --json` may show
+> capabilities that are mechanically implemented while this document remains the
+> authority for end-to-end qualification.
+
 ## Purpose
 
 This document defines the boundary of the **v0.1 support claim**. It is narrower

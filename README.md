@@ -53,6 +53,29 @@ whether to continue or answer.
 StateBraid and an agent harness should integrate through a narrow serving/API
 boundary rather than share a second semantic control plane.
 
+### Backend Contract v0.2
+
+StateBraid now separates its compute policy from serving-runtime mechanics through
+a capability-based **Backend Contract v0.2**. Backends may declare namespace,
+prefix lookup, admission/residency, transaction/rollback, actual-prefix hit
+attribution, and generation-safety capabilities independently; they do not have to
+implement the complete surface in one step. The reusable conformance runner turns
+unsupported capabilities into explicit skips and treats failures of declared
+capabilities as hard failures.
+
+StateBraid does **not** own model execution, attention kernels, continuous batching,
+physical KV storage, or KV transport/tiering. Those remain backend responsibilities.
+This keeps StateBraid usable above MLX-LM, llama.cpp, vLLM, SGLang, or future
+serving/storage stacks without becoming a second inference engine or KV server.
+
+Inspect the machine-readable contract with:
+
+```bash
+statebraid-doctor contract --json
+```
+
+See [`docs/BACKEND_CONTRACT_V0_2.md`](docs/BACKEND_CONTRACT_V0_2.md).
+
 ## Non-goals for v0.1
 
 StateBraid v0.1 is **not**:
@@ -181,6 +204,7 @@ history stay outside this repository.
 See:
 
 - [`docs/PRODUCT_BOUNDARY.md`](docs/PRODUCT_BOUNDARY.md)
+- [`docs/BACKEND_CONTRACT_V0_2.md`](docs/BACKEND_CONTRACT_V0_2.md)
 - [`docs/PHASE1_COMPUTE_CONTINUITY.md`](docs/PHASE1_COMPUTE_CONTINUITY.md)
 - [`docs/PHASE1_5_MLX_STORAGE_ADAPTER.md`](docs/PHASE1_5_MLX_STORAGE_ADAPTER.md)
 - [`docs/PHASE1_6_PRODUCTION_CANARY.md`](docs/PHASE1_6_PRODUCTION_CANARY.md)
