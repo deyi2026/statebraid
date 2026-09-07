@@ -4,6 +4,8 @@
 > not a broader runtime support claim. `statebraid-doctor contract --json` may show
 > capabilities that are mechanically implemented while this document remains the
 > authority for end-to-end qualification.
+> Phase 8 llama.cpp capability qualification does not change this v0.1 runtime
+> support table; MLX remains the only v0.1 reference-qualified serving backend.
 
 ## Purpose
 

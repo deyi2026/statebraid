@@ -11,6 +11,14 @@ No unreleased user-facing changes are recorded yet.
 
 ### Backend contract
 
+- add the second backend proof against exact upstream llama.cpp `465e49b9`: a
+  public-HTTP partial adapter that observes `cache_n`, validates exact slot IDs,
+  fails closed on non-default trust domains, and preserves llama.cpp ownership of
+  scheduling/KV storage;
+- distinguish llama.cpp public-API compatibility from exact audited source-commit
+  qualification via `/props` build metadata;
+- clarify that Backend Contract v0.2 lookup evidence may be execution-coupled and
+  remove the MLX-shaped requirement to expose an unsafe pre-replay exact hit;
 - add Backend Contract v0.2 with graded capability declarations and dependency
   validation;
 - add reusable backend conformance for namespace isolation, actual-prefix hits,

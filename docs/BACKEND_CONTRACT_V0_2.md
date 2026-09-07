@@ -39,7 +39,7 @@ The v0.2 capabilities are:
 | Capability | StateBraid contract meaning |
 | --- | --- |
 | `namespace_isolation` | identical tokens in different namespaces cannot resolve to the same reusable state |
-| `prefix_lookup` | adapter can report nearest-prefix lookup as exact prompt + remainder evidence |
+| `prefix_lookup` | adapter can report the actual reusable/served prompt prefix as exact prompt + remainder evidence; observation may be pre-execution or execution-coupled |
 | `admission_residency` | backend permits StateBraid to apply external admission/eviction decisions |
 | `transactional_mutation` | exact capture/remove/insert/restore mechanics are available |
 | `rollback` | failed mutation can restore the prior valid backend state |
@@ -61,11 +61,16 @@ The current integration levels are descriptive, not marketing support tiers:
 
 ## Lookup evidence
 
-`LookupObservation` normalizes backend lookup evidence. A backend result is
-rejected when its uncached remainder is not an exact suffix of the prompt, when it
-claims a matched prefix without a payload, or when it returns a payload without a
-matched prefix. This prevents StateBraid from crediting cache reuse from ambiguous
-or internally inconsistent backend telemetry.
+`LookupObservation` normalizes backend reuse evidence. The evidence may come from
+a pure/pre-execution lookup API or from execution-coupled factual telemetry such
+as a server response that reports the prefix actually reused. StateBraid does not
+require backends to expose an unsafe intermediate exact-hit state merely to prove
+generation safety.
+
+A backend result is rejected when its uncached remainder is not an exact suffix of
+the prompt, when it claims a matched prefix without a payload, or when it returns a
+payload without a matched prefix. This prevents StateBraid from crediting cache
+reuse from ambiguous or internally inconsistent backend telemetry.
 
 ## Conformance framework
 
@@ -88,7 +93,7 @@ The standard v0.2 suite covers, when the corresponding capabilities are declared
 4. stable/active successor lineage and residency;
 5. independent sequence/byte capacity enforcement;
 6. transactional rollback after injected mutation failure;
-7. generation-safe exact reuse from an N-1 or equivalent safe boundary.
+7. generation-safe exact reuse with a non-empty prompt remainder (N-1 replay or a larger safe recomputation).
 
 A capability that is not declared is skipped explicitly. A capability that **is**
 declared but fails its case is a conformance failure. This is the fail-closed rule
@@ -101,6 +106,20 @@ standard deterministic conformance suite. This declaration does **not** widen th
 v0.1 runtime qualification: the exact MLX base, Apple Silicon platform, Ornith
 hybrid/non-trimmable path, concurrency profile, default-off activation, and other
 limits remain those in `SUPPORTED_SCOPE_V0_1.md`.
+
+## llama.cpp reference
+
+Phase 8 audits `ggml-org/llama.cpp` commit
+`465e49b9cea78a68b9c244ffb48d0ee24a82873d` as a second, structurally different
+backend. The public llama-server adapter intentionally declares only
+`prefix_lookup`, `hit_attribution`, and `generation_safety`. It does not declare
+namespace isolation, admission/residency, transactional mutation, or rollback.
+
+This is deliberate. Current llama-server owns its slot scheduler, shared prompt
+cache, and KV storage, while the shared RAM prompt cache has no StateBraid trust
+namespace. StateBraid observes the actually served prefix from `timings.cache_n`
+and rejects non-default trust domains rather than inventing isolation from slot
+IDs. See [`LLAMA_CPP_REFERENCE_V0_2.md`](LLAMA_CPP_REFERENCE_V0_2.md).
 
 Machine-readable inspection:
 

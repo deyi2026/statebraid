@@ -18,11 +18,18 @@ class DoctorBackendContractTest(unittest.TestCase):
         self.assertIn(
             "exact namespace + token cache identity", report["statebraid_owns"]
         )
-        self.assertEqual(len(report["known_adapters"]), 1)
-        mlx = report["known_adapters"][0]
-        self.assertEqual(mlx["name"], "mlx-lm")
+        self.assertEqual(len(report["known_adapters"]), 2)
+        adapters = {item["name"]: item for item in report["known_adapters"]}
+        mlx = adapters["mlx-lm"]
         self.assertEqual(mlx["integration_level"], "generation-safe-managed")
         self.assertIn("generation_safety", mlx["capabilities"])
+        llama = adapters["llama.cpp"]
+        self.assertEqual(llama["integration_level"], "partial")
+        self.assertEqual(
+            llama["capabilities"],
+            ["generation_safety", "hit_attribution", "prefix_lookup"],
+        )
+        self.assertNotIn("namespace_isolation", llama["capabilities"])
 
 
 if __name__ == "__main__":
