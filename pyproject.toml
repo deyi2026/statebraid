@@ -1,12 +1,31 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "statebraid"
-version = "0.1.0.dev0"
+version = "0.1.0rc1"
 description = "Agent-aware compute-continuity runtime for long-running local agents"
+readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+authors = [{ name = "StateBraid contributors" }]
+keywords = ["ai-agents", "inference", "kv-cache", "prompt-cache", "mlx"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+
+[project.urls]
+Homepage = "https://github.com/deyi2026/statebraid"
+Repository = "https://github.com/deyi2026/statebraid"
+Issues = "https://github.com/deyi2026/statebraid/issues"
+Changelog = "https://github.com/deyi2026/statebraid/blob/main/CHANGELOG.md"
 
 [project.scripts]
 statebraid-doctor = "statebraid.doctor:main"

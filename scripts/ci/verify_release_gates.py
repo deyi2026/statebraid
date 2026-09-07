@@ -78,6 +78,51 @@ def _single(paths: list[Path], label: str) -> Path:
     return paths[0]
 
 
+def _verify_distribution_metadata(metadata: object, version: str, label: str) -> None:
+    get = getattr(metadata, "get")
+    get_all = getattr(metadata, "get_all")
+    if get("Name") != "statebraid":
+        raise SystemExit(f"{label}: unexpected package name: {get('Name')!r}")
+    if get("Version") != version:
+        raise SystemExit(f"{label}: unexpected package version: {get('Version')!r}")
+    if get("Requires-Python") != ">=3.11":
+        raise SystemExit(f"{label}: unexpected Requires-Python: {get('Requires-Python')!r}")
+    if get("License-Expression") != "MIT":
+        raise SystemExit(
+            f"{label}: unexpected License-Expression: {get('License-Expression')!r}"
+        )
+    license_headers = set(get_all("License-File", []))
+    if not {"LICENSE", "THIRD_PARTY_NOTICES.md"}.issubset(license_headers):
+        raise SystemExit(f"{label}: missing License-File headers: {sorted(license_headers)}")
+    if get("Description-Content-Type") != "text/markdown":
+        raise SystemExit(
+            f"{label}: README long description is not text/markdown: "
+            f"{get('Description-Content-Type')!r}"
+        )
+    if get("Author") != "StateBraid contributors":
+        raise SystemExit(f"{label}: unexpected Author: {get('Author')!r}")
+    keywords = get("Keywords") or ""
+    for keyword in ("ai-agents", "inference", "kv-cache", "prompt-cache", "mlx"):
+        if keyword not in keywords:
+            raise SystemExit(f"{label}: missing keyword: {keyword}")
+    project_urls = {
+        value.split(",", 1)[0].strip()
+        for value in get_all("Project-URL", [])
+        if "," in value
+    }
+    for url_label in ("Homepage", "Repository", "Issues", "Changelog"):
+        if url_label not in project_urls:
+            raise SystemExit(f"{label}: missing Project-URL label: {url_label}")
+    classifiers = set(get_all("Classifier", []))
+    if any(value.startswith("License ::") for value in classifiers):
+        raise SystemExit(f"{label}: deprecated License :: classifier must not be emitted")
+    for minor in ("3.11", "3.12", "3.13", "3.14"):
+        if f"Programming Language :: Python :: {minor}" not in classifiers:
+            raise SystemExit(f"{label}: missing Python classifier: {minor}")
+    if "StateBraid" not in str(getattr(metadata, "get_payload")()):
+        raise SystemExit(f"{label}: missing README long description payload")
+
+
 def verify_artifacts(dist_dir: Path) -> None:
     from statebraid import __version__
     from statebraid.integrations.mlx import REFERENCE_PATCH_NAME, REFERENCE_PATCH_SHA256
@@ -105,12 +150,16 @@ def verify_artifacts(dist_dir: Path) -> None:
         metadata_path = _single([Path(name) for name in metadata_paths], "wheel METADATA")
         entrypoint_path = _single([Path(name) for name in entrypoint_paths], "wheel entry_points")
         metadata = BytesParser(policy=default).parsebytes(archive.read(metadata_path.as_posix()))
-        if metadata["Name"] != "statebraid":
-            raise SystemExit(f"unexpected package name: {metadata['Name']!r}")
-        if metadata["Version"] != __version__:
-            raise SystemExit(f"unexpected package version: {metadata['Version']!r}")
-        if metadata["Requires-Python"] != ">=3.11":
-            raise SystemExit(f"unexpected Requires-Python: {metadata['Requires-Python']!r}")
+        _verify_distribution_metadata(metadata, __version__, "wheel")
+        license_entries = {
+            name.rsplit("/", 1)[-1]
+            for name in names
+            if ".dist-info/licenses/" in name
+        }
+        if not {"LICENSE", "THIRD_PARTY_NOTICES.md"}.issubset(license_entries):
+            raise SystemExit(
+                f"wheel missing physical license files: {sorted(license_entries)}"
+            )
         entries = archive.read(entrypoint_path.as_posix()).decode("utf-8")
         for command in ("statebraid-doctor", "statebraid-reference"):
             if command not in entries:
@@ -119,6 +168,11 @@ def verify_artifacts(dist_dir: Path) -> None:
     with tarfile.open(sdist, "r:gz") as archive:
         names = archive.getnames()
         suffixes = (
+            "/CHANGELOG.md",
+            "/LICENSE",
+            "/docs/RELEASE_CHECKLIST.md",
+            "/docs/RELEASE_PROCESS.md",
+            "/THIRD_PARTY_NOTICES.md",
             "/README.md",
             "/pyproject.toml",
             "/src/statebraid/support.py",
@@ -127,6 +181,15 @@ def verify_artifacts(dist_dir: Path) -> None:
         for suffix in suffixes:
             if not any(name.endswith(suffix) for name in names):
                 raise SystemExit(f"sdist missing required path suffix: {suffix}")
+        root_pkg_info = _single(
+            [Path(name) for name in names if name.count("/") == 1 and name.endswith("/PKG-INFO")],
+            "root sdist PKG-INFO",
+        )
+        member = archive.extractfile(root_pkg_info.as_posix())
+        if member is None:
+            raise SystemExit("unable to read root sdist PKG-INFO")
+        sdist_metadata = BytesParser(policy=default).parsebytes(member.read())
+        _verify_distribution_metadata(sdist_metadata, __version__, "sdist")
 
     print(f"wheel={wheel.name}")
     print(f"sdist={sdist.name}")
