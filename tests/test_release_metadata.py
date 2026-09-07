@@ -38,9 +38,19 @@ class ReleaseMetadataContractTest(unittest.TestCase):
         self.assertEqual(self.project["authors"], [{"name": "StateBraid contributors"}])
         self.assertTrue(self.project["keywords"])
         urls = self.project["urls"]
-        for key in ("Homepage", "Repository", "Issues", "Changelog"):
+        for key in ("Homepage", "Repository", "Issues", "Changelog", "Documentation", "Security"):
             with self.subTest(key=key):
                 self.assertIn(key, urls)
+
+    def test_public_release_links_and_security_reporting_are_portable(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+        distribution = (ROOT / "docs" / "DISTRIBUTION_BOUNDARY.md").read_text(encoding="utf-8")
+        self.assertNotRegex(readme, r"\]\((?:docs/|CHANGELOG\.md|SECURITY\.md|LICENSE\)|THIRD_PARTY_NOTICES\.md)")
+        self.assertIn("https://github.com/deyi2026/statebraid/blob/main/docs/", readme)
+        self.assertIn("https://github.com/deyi2026/statebraid/security/advisories/new", security)
+        self.assertIn("python -m pip install .", distribution)
+        self.assertIn("same environment", distribution)
 
     def test_python_ci_matrix_is_reflected_in_classifiers(self) -> None:
         classifiers = set(self.project["classifiers"])

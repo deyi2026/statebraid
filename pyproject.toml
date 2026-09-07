@@ -26,6 +26,8 @@ Homepage = "https://github.com/deyi2026/statebraid"
 Repository = "https://github.com/deyi2026/statebraid"
 Issues = "https://github.com/deyi2026/statebraid/issues"
 Changelog = "https://github.com/deyi2026/statebraid/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/deyi2026/statebraid#readme"
+Security = "https://github.com/deyi2026/statebraid/security/policy"
 
 [project.scripts]
 statebraid-doctor = "statebraid.doctor:main"

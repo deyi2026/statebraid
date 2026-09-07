@@ -52,6 +52,18 @@ mechanical evidence; prose confidence is not a substitute.
 - [ ] release diff contains no experiment logs, local model files or research-only
       artifacts.
 
+## Public release hygiene
+
+- [ ] repository history and every public ref have been scanned for credentials, private
+      keys, private absolute paths, model files, logs, and research-only data;
+- [ ] README repository-file links use absolute GitHub URLs so the PyPI long description
+      does not produce broken relative links;
+- [ ] `SECURITY.md` provides a private vulnerability-reporting path;
+- [ ] the MLX reference install instructions explicitly install the exact patched checkout
+      and its dependencies before running `statebraid-doctor mlx`;
+- [ ] only intentionally public remote branches/tags remain before repository visibility
+      changes from private to public.
+
 ## Tag/release gate
 
 - [ ] final release-readiness audit has passed with no P0 blocker;
