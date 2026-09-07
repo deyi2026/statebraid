@@ -23,6 +23,15 @@
   reference profile, Qwen3.6-derived Ornith hybrid/non-trimmable evidence,
   default-off activation, trust-domain conditions, and explicit unqualified
   runtime modes as machine-readable package metadata plus documentation.
+- **DONE (CI / Repo Protection):** enforce zero-model unit, Python 3.11-3.14,
+  Pyright, contract, privacy and package-content checks through GitHub Actions;
+  protect `main` for everyone with strict required checks, PR flow, linear
+  history, conversation resolution, and no force-push/deletion.
+- **DONE (Release Preparation):** select MIT for the StateBraid distribution,
+  retain Apple/mlx-lm provenance separately, adopt PEP 639 license metadata,
+  package legal/release documentation, and advance source metadata to
+  `0.1.0rc1`. Formal release tagging remains gated on the final release-readiness
+  audit.
 - Maintain one canonical integration benchmark that detects agent-behavior regressions while reporting cache reuse, new prefill, worker health and factual compute telemetry.
 
 ## v0.2 -- backend abstraction and capability reporting

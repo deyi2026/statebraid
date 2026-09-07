@@ -6,6 +6,10 @@ StateBraid is built around one practical goal:
 
 > Less recompute. Less redo.
 
+The source tree is currently at **`0.1.0rc1` release-candidate metadata**. This is
+not yet a formal public `v0.1.0` release: the final release-readiness audit and tag
+gate remain separate steps.
+
 StateBraid directly owns the **less recompute** half of that promise. It preserves
 mechanical serving state so long-running agents do not repeatedly rebuild the same
 model prefix. The **less redo** half is an integration outcome: task, evidence and
@@ -188,7 +192,11 @@ See:
 - [`docs/SUPPORTED_SCOPE_V0_1.md`](docs/SUPPORTED_SCOPE_V0_1.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- [`docs/RELEASE_PROCESS.md`](docs/RELEASE_PROCESS.md)
+- [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)
+- [`CHANGELOG.md`](CHANGELOG.md)
 - [`SECURITY.md`](SECURITY.md)
+- [`LICENSE`](LICENSE)
 - [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
 
 ## Development verification
@@ -202,8 +210,14 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 Static type verification, when Pyright is available:
 
 ```bash
-PYTHONPATH=src pyright src tests
+PYTHONPATH=src pyright src tests bench scripts
 ```
+
+## License
+
+StateBraid is licensed under the [MIT License](LICENSE). The packaged MLX
+reference integration has separate upstream provenance; the Apple/mlx-lm MIT
+notice is retained in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Project identity
 

@@ -28,4 +28,8 @@ The optional MLX adapter and the exact-hit generation-safety behavior are derive
 > OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 > SOFTWARE.
 
-StateBraid's own project license has not yet been selected by this repository's owner.
+StateBraid itself is distributed under the MIT License in `LICENSE`. The Apple
+notice above is retained separately because the optional MLX adapter, exact-hit
+generation-safety work, and packaged reference integration were derived from work
+performed against mlx-lm. StateBraid's MIT license does not replace or erase the
+upstream copyright and permission notice.
