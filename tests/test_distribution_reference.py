@@ -5,6 +5,9 @@ from pathlib import Path
 
 from statebraid.integrations.mlx import (
     REFERENCE_MLX_BASE_SHA,
+    REFERENCE_MLX_BASE_TREE_SHA,
+    REFERENCE_MLX_COMMIT_SHA,
+    REFERENCE_MLX_SOURCE_TREE_SHA,
     REFERENCE_PATCH_SHA256,
     reference_patch_bytes,
     verify_reference_patch,
@@ -33,7 +36,19 @@ class DistributionReferenceTest(unittest.TestCase):
         self.assertEqual(hashlib.sha256(data).hexdigest(), REFERENCE_PATCH_SHA256)
         self.assertEqual(
             REFERENCE_MLX_BASE_SHA,
-            "6d21ce4b065a2e163fa6de76a9936c61aeb5784a",
+            "7fb4be44d560e5b74595210f83cb6003a57e52a7",
+        )
+        self.assertEqual(
+            REFERENCE_MLX_BASE_TREE_SHA,
+            "a47df2a0f9f3658677721dac2d846cb3db6cab06",
+        )
+        self.assertEqual(
+            REFERENCE_MLX_COMMIT_SHA,
+            "404b970d12928d1c1db27317614982623abf0208",
+        )
+        self.assertEqual(
+            REFERENCE_MLX_SOURCE_TREE_SHA,
+            "9212fdfe2412aa711dff937ebf34044d9d00ed77",
         )
 
     def test_reference_patch_contains_only_expected_integration_paths(self):
@@ -46,6 +61,9 @@ class DistributionReferenceTest(unittest.TestCase):
         self.assertEqual(
             paths,
             {
+                "bench/test_models_endpoint.py",
+                "bench/test_server_cache_exact.py",
+                "bench/test_server_quiet_disconnect.py",
                 "bench/test_statebraid_reference.py",
                 "mlx_lm/models/cache.py",
                 "mlx_lm/server.py",
@@ -61,6 +79,8 @@ class DistributionReferenceTest(unittest.TestCase):
             "/Users/",
         ):
             self.assertNotIn(forbidden, text)
+        self.assertIn("STATEBRAID_REFERENCE_RUNTIME_QUALIFIED = True", text)
+        self.assertIn('STATEBRAID_REFERENCE_STATUS = "reference_qualified"', text)
 
     def test_reference_patch_can_be_materialized(self):
         with tempfile.TemporaryDirectory() as directory:
