@@ -64,6 +64,7 @@ class ReleaseMetadataContractTest(unittest.TestCase):
         self.assertIn("Apache License", license_text)
         self.assertIn("Version 2.0, January 2004", license_text)
         self.assertIn("Copyright © 2023 Apple Inc.", notices)
+        self.assertIn("Copyright (c) 2023-2026 The ggml authors", notices)
         self.assertIn("StateBraid itself is distributed under the Apache License 2.0", notices)
         self.assertNotIn("has not yet been selected", notices)
 
