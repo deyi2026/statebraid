@@ -230,6 +230,13 @@ candidate evidence set**. It does not alter the committed descriptor:
 - `namespace_isolation=false`;
 - single-domain `local-default` only.
 
+Portable, privacy-scrubbed requalification inputs for this candidate profile are
+kept in `qualification/llama_cpp_real_gguf/`. They freeze the exact source/model
+identity, the mechanical canary, fail-closed adapter checks and compact evidence
+provenance without copying raw logs, local model paths or Agent reasoning into
+the product repository. These repository assets are intentionally excluded from
+wheel/sdist artifacts and do not widen `SUPPORTED_SCOPE_V0_1.md`.
+
 The next promotion gate is native Linux x86_64 using the **same GGUF bytes**, the
 same audited llama.cpp source, and the same mechanical canary. Linux CPU is the
 primary cross-platform qualification; CUDA is a separate supplement after CPU PASS.

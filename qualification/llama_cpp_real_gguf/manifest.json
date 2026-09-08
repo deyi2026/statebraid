@@ -1,0 +1,55 @@
+{
+  "schema": "statebraid-llama-real-gguf-qualification-v1",
+  "status": "candidate-evidence",
+  "runtime_qualified": false,
+  "llama_cpp": {
+    "repository": "ggml-org/llama.cpp",
+    "source_sha": "465e49b9cea78a68b9c244ffb48d0ee24a82873d",
+    "source_tree_sha": "4e34a10914c334511b880e641a75260d0be6ad0e"
+  },
+  "model": {
+    "basename": "qwen3.6-35b-a3b-pruned-v2.gguf",
+    "sha256": "c6afa34954c5e3abcc492e49b70ec6abfec1054a470f353f732739f9214a10a1",
+    "size_bytes": 16269908320,
+    "gguf_architecture": "qwen35moe",
+    "file_type": 15,
+    "quantization_observed": "Q4_K - Medium",
+    "parameters": "26.60 B",
+    "layers": 40,
+    "experts": 192,
+    "experts_used": 8,
+    "train_context": 262144
+  },
+  "server_common": {
+    "parallel": 1,
+    "ctx_size": 65536,
+    "n_predict": 2048,
+    "cache_ram": 0,
+    "no_context_shift": true,
+    "jinja": true,
+    "reasoning": "auto",
+    "webui": false,
+    "metrics": true
+  },
+  "apple_cpu_l1": {
+    "cmake": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "GGML_METAL": "OFF",
+      "GGML_ACCELERATE": "ON",
+      "GGML_BLAS": "ON",
+      "GGML_NATIVE": "ON"
+    },
+    "gpu_layers": 0
+  },
+  "apple_metal_supplement": {
+    "cmake": {
+      "CMAKE_BUILD_TYPE": "Release",
+      "GGML_METAL": "ON",
+      "GGML_ACCELERATE": "ON",
+      "GGML_BLAS": "ON",
+      "GGML_NATIVE": "ON"
+    },
+    "gpu_layers": 999
+  },
+  "cross_platform_rule": "Use the exact same GGUF bytes, exact llama.cpp source SHA, same mechanical canary prompts and common server settings. Change only platform/build flags required by the target hardware. Prefix-reuse success alone does not establish namespace isolation or production support."
+}

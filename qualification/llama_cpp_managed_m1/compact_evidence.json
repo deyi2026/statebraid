@@ -1,0 +1,98 @@
+{
+  "schema": "statebraid-qualification-compact-evidence-v1",
+  "date": "2026-09-07",
+  "status": "PASS",
+  "evidence_era_note": "frozen real-GGUF evidence bound to this exact source; the binding and evidence tier of the current managed candidate are recorded in the kit manifest",
+  "classification": "experimental managed-storage real-GGUF evidence",
+  "runtime_qualified": false,
+  "source": {
+    "managed_source_sha": "04329aacab48f91c79cd33490c2b4b33b29a7ef5",
+    "managed_source_tree_sha": "f064027f09970857a7ed53bf258706084a530fdf",
+    "patch_sha256": "6ff061ba996ca5a2ae95dd930099507b31bf8f9aa933a48e628e12a5657bba76",
+    "model_sha256": "c6afa34954c5e3abcc492e49b70ec6abfec1054a470f353f732739f9214a10a1"
+  },
+  "formal_agent": {
+    "forward": {
+      "cold": [
+        0,
+        305
+      ],
+      "capture_tokens": 396,
+      "capture_bytes": 205713124,
+      "continuation": [
+        396,
+        47
+      ],
+      "final": "42"
+    },
+    "reverse": {
+      "cold": [
+        0,
+        305
+      ],
+      "capture_tokens": 396,
+      "capture_bytes": 205713124,
+      "continuation": [
+        396,
+        47
+      ],
+      "final": "42"
+    },
+    "same_prompt_hash": true,
+    "cleanup_empty": true
+  },
+  "formal_matrix": {
+    "cold_stable": [
+      0,
+      492
+    ],
+    "stable_to_active1": [
+      492,
+      80
+    ],
+    "active1_to_active2": [
+      572,
+      72
+    ],
+    "unrelated": [
+      0,
+      447
+    ],
+    "exact_return_generation_safe": [
+      640,
+      4
+    ],
+    "active_successor_evictions": 1,
+    "trim_physical_logical_one": true,
+    "trim_payload_bytes_match": true
+  },
+  "restart": {
+    "epoch_changed": true,
+    "store_empty_after_restart": true,
+    "stale_restore_rejected_400": true
+  },
+  "memory_pressure": {
+    "max_sequences": 2,
+    "max_bytes": 536870912,
+    "cycles": 4,
+    "max_live_payload_bytes": 492771196,
+    "physical_store_empty_after_each_cycle": true,
+    "post_drop_footprint_growth_first_to_last_mib": 0.0,
+    "gc_failure_pending_drop_visible": true,
+    "gc_failure_blocks_new_capture": true,
+    "gc_failure_reconciles": true,
+    "final_store_empty": true
+  },
+  "raw_evidence_sha256": {
+    "m1_report": "30be2aec27953a4b1f065c52c390c90c098a072d9e6c2acbb667b716784de32e",
+    "formal_adapter_report": "9877de378a56a6cf2d9f4cb3949e709f20a9ed66137c6ced3ee823c713a9fa4a",
+    "memory_pressure_report": "b48cd38be8cd8d47013d93b92c294d55b6320e4c940990628b94866ee0d79754",
+    "formal_agent_runner": "e9baa82534e0da8199d1173f0f9fa7d8f45d6946ed313bdfff9b99bedce146b7",
+    "formal_agent_result": "f6a6872313e541f1e067c069d5968a4558ce06edde732601e4964b6229d24c5f",
+    "formal_matrix_runner": "2be4c3df4f2fede175b7da43a03b4d2b0dbcb3b4341a313e7ed1e6c6041d93fc",
+    "formal_matrix_result": "98f7e44d7e979902cd9abca3747d0b75d5af101bb13c74913faa2f59fd34e7bd",
+    "memory_pressure_runner": "b605f5bf3e736fc661d3e79d427c6a90185f162acec0e61d27b9af1565d1acd0",
+    "memory_pressure_result": "becd021ba19edefcdd283c9d4f9b06716ce6c769b2465c34bcb91e20f164c6cd"
+  },
+  "scope_note": "This compact record preserves the verified M1 mechanical facts without storing raw reasoning, process/session identifiers, opaque handles/epochs, or local paths. M1 remains runtime_qualified=false."
+}

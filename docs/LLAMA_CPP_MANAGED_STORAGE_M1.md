@@ -172,6 +172,15 @@ is driven only by factual completion telemetry. The managed/stock/policy target
 set is **48 PASS** and the complete StateBraid suite is **130 PASS / 5 skipped /
 100 subtests PASS** after the exact-token integration hardening.
 
+The portable real-GGUF M1 requalification kit is kept in
+`qualification/llama_cpp_managed_m1/`. It includes the exact frozen identities,
+formal stable/active matrix, autonomous-tool continuation canary,
+memory-pressure/physical-GC-failure gate, two-step restart invalidation probe and
+sanitized compact evidence provenance. Raw logs, local paths, process/session
+identifiers, opaque handle/epoch values and model reasoning remain outside the
+repository. The kit is source-repository evidence only and is mechanically
+excluded from wheel/sdist artifacts.
+
 ## Real server evidence
 
 A real tiny llama-server built from the historical exact-token M1 source

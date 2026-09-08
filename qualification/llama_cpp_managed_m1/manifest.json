@@ -1,0 +1,31 @@
+{
+  "schema": "statebraid-llama-managed-m1-qualification-v1",
+  "status": "experimental-candidate-evidence",
+  "runtime_qualified": false,
+  "upstream_base_sha": "465e49b9cea78a68b9c244ffb48d0ee24a82873d",
+  "upstream_base_tree_sha": "4e34a10914c334511b880e641a75260d0be6ad0e",
+  "managed_source_sha": "04329aacab48f91c79cd33490c2b4b33b29a7ef5",
+  "managed_source_tree_sha": "f064027f09970857a7ed53bf258706084a530fdf",
+  "packaged_patch_sha256": "6ff061ba996ca5a2ae95dd930099507b31bf8f9aa933a48e628e12a5657bba76",
+  "model_sha256": "c6afa34954c5e3abcc492e49b70ec6abfec1054a470f353f732739f9214a10a1",
+  "qualification_profile": {
+    "transport": "loopback-only",
+    "slots": 1,
+    "request_concurrency": 1,
+    "native_cache_ram": 0,
+    "formal_matrix_max_sequences": 3,
+    "formal_matrix_max_bytes": 2147483648,
+    "memory_pressure_max_sequences": 2,
+    "memory_pressure_max_bytes": 536870912,
+    "memory_pressure_cycles": 4
+  },
+  "non_claims": [
+    "runtime-qualified production support",
+    "multi-trust-domain namespace isolation",
+    "full physical rollback",
+    "multi-slot/concurrent serving",
+    "speculative decoding",
+    "Linux/x86_64 qualification",
+    "arbitrary GGUF/model-family qualification"
+  ]
+}
