@@ -1,0 +1,43 @@
+{
+  "schema": "statebraid-qualification-compact-evidence-v1",
+  "date": "2026-09-07",
+  "status": "PASS",
+  "classification": "real-model runtime-qualification candidate evidence",
+  "runtime_qualified": false,
+  "source": {
+    "llama_cpp_sha": "465e49b9cea78a68b9c244ffb48d0ee24a82873d",
+    "model_sha256": "c6afa34954c5e3abcc492e49b70ec6abfec1054a470f353f732739f9214a10a1"
+  },
+  "apple_cpu": {
+    "mechanical_matrix": "PASS",
+    "cold_A": [0, 877],
+    "exact_A": [873, 4],
+    "exact_generation_nonempty": true,
+    "extension": [873, 24],
+    "divergence": [361, 516],
+    "return_after_divergence": [361, 516],
+    "multi_round": [[0, 880], [880, 16], [896, 16]],
+    "erase_resets": true,
+    "restart_resets": true,
+    "agent_tool_canary": "PASS"
+  },
+  "apple_metal_supplement": {
+    "full_offload_layers": "41/41",
+    "mechanical_matrix_same_safety_result": true,
+    "restart_resets": true,
+    "agent_tool_canary": "PASS"
+  },
+  "fail_closed": {
+    "non_default_trust_domain": true,
+    "invalid_slot_without_modulo_wrap": true,
+    "integration_level": "partial",
+    "namespace_isolation": false
+  },
+  "raw_evidence_sha256": {
+    "qualification_report": "bdee1d00f44c2a6dfeb0986844fc1a4b10753edee55dbca88dcc82e14d8b0c42",
+    "handoff_manifest": "c94078295301e38741ef363284f6fa3ac4168afed40551618f94d1df0ef48bb3",
+    "mechanical_canary_source": "fbcc1c56a740be8ff35b1f0bcd828c0e38da22cf68c10d79301eac0a64541fea",
+    "mechanical_canary_result": "395befd6c89da04d005c0ff147a53110de79443308b566816e29e2f8856b2410"
+  },
+  "scope_note": "This compact record preserves mechanical qualification facts and provenance only. It does not promote llama.cpp/GGUF into the v0.1 supported runtime matrix."
+}

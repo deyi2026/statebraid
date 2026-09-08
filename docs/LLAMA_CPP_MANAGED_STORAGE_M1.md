@@ -19,12 +19,14 @@ upstream source:
 - managed handle implementation: `29cad05988c9c48ee26ded83764ae70ae6edf665`;
 - exclusive-policy `clear` primitive: `6e7d910135a4ef586aa89b41e2ceaa2058b2defa`;
 - loopback-only control-plane hardening: `0f75058ccb5c4e0d7bd029d37678435eb0d2458c`;
-- exact-token capture binding: `04329aacab48f91c79cd33490c2b4b33b29a7ef5`;
-- final source tree: `f064027f09970857a7ed53bf258706084a530fdf`;
+- exact-token capture binding (historical, 04329aac era): `04329aacab48f91c79cd33490c2b4b33b29a7ef5`;
+- managed candidate source (current, D-round requalification): `09a4891ddd3e546f29dffd38e1a00ab5a19085f6`;
+- final source tree: `4788b62631a8316472c9a272a04235bdb1de39e6`;
 - packaged M1 patch SHA256:
-  `6ff061ba996ca5a2ae95dd930099507b31bf8f9aa933a48e628e12a5657bba76`;
-- StateBraid adapter requires `build_info` matching the final
-  `04329aacab48f91c79cd33490c2b4b33b29a7ef5` reference.
+  `36eb956e8d38743068f59d041a9b7487543a41726d11b8fef0ce1d4b09c1f9a9`;
+- StateBraid adapter requires `build_info` matching the current managed
+  reference `09a4891ddd3e546f29dffd38e1a00ab5a19085f6` (bumped from the
+  historical 04329aac binding when the candidate was requalified).
 
 StateBraid ships the M1 source delta as an experimental, version-bound artifact;
 this does not promote llama.cpp into the v0.1 runtime-qualified support matrix.
@@ -171,6 +173,15 @@ handles are removed, unresolved GC blocks new capture, and policy hit accounting
 is driven only by factual completion telemetry. The managed/stock/policy target
 set is **48 PASS** and the complete StateBraid suite is **130 PASS / 5 skipped /
 100 subtests PASS** after the exact-token integration hardening.
+
+The portable real-GGUF M1 requalification kit is kept in
+`qualification/llama_cpp_managed_m1/`. It includes the exact frozen identities,
+formal stable/active matrix, autonomous-tool continuation canary,
+memory-pressure/physical-GC-failure gate, two-step restart invalidation probe and
+sanitized compact evidence provenance. Raw logs, local paths, process/session
+identifiers, opaque handle/epoch values and model reasoning remain outside the
+repository. The kit is source-repository evidence only and is mechanically
+excluded from wheel/sdist artifacts.
 
 ## Real server evidence
 
