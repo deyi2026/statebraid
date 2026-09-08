@@ -141,6 +141,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"server API: {report.server_api_version or 'missing'}")
         print(f"transactional storage: {'yes' if report.transactional_storage else 'no'}")
         print(f"request namespace: {'yes' if report.request_namespace else 'no'}")
+        print(f"reference base: {report.reference_base_revision or 'missing'}")
+        print(
+            "reference identity: "
+            f"{'match' if report.reference_identity_match else 'mismatch'}"
+        )
+        print(
+            "runtime qualified marker: "
+            f"{'yes' if report.reference_runtime_qualified is True else 'no'}"
+        )
         for issue in report.issues:
             print(f"issue: {issue}")
     return 0 if report.compatible else 2

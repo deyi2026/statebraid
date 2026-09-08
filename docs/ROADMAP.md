@@ -15,7 +15,7 @@
   infrastructure rather than StateBraid semantics.
 - **DONE (Distribution Boundary):** ship the StateBraid core independently from
   MLX-LM, package a SHA256-frozen reference patch against exact upstream MLX-LM
-  `6d21ce4`, expose capability-based `statebraid-doctor` and patch-export tooling,
+  `7fb4be44`, expose capability-based `statebraid-doctor` and patch-export tooling,
   preserve explicit/default-off activation and native rollback, and validate the
   clean reference with upstream regressions plus a real single-model canary.
 - **DONE (Supported Scope):** separate backend-neutral Compute Contract v0.1 from
@@ -23,6 +23,10 @@
   reference profile, Qwen3.6-derived Ornith hybrid/non-trimmable evidence,
   default-off activation, trust-domain conditions, and explicit unqualified
   runtime modes as machine-readable package metadata plus documentation.
+- **DONE (MLX upstream requalification E2-E5):** reconcile the reference integration
+  onto exact upstream `7fb4be44`, retain only mechanical cache-continuity authority,
+  re-run strict-serial real-model and immutable-LFL parity gates, then promote a
+  new SHA256-frozen reference without widening Supported Scope v0.1.
 - **DONE (CI / Repo Protection):** enforce zero-model unit, Python 3.11-3.14,
   Pyright, contract, privacy and package-content checks through GitHub Actions;
   protect `main` for everyone with strict required checks, PR flow, linear

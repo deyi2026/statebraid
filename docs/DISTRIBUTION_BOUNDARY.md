@@ -20,18 +20,25 @@ The research MLX-LM fork is **not** a StateBraid distribution artifact.
 ## Qualified reference
 
 - upstream repository: `ml-explore/mlx-lm`;
-- exact base SHA: `6d21ce4b065a2e163fa6de76a9936c61aeb5784a`;
-- local qualification commit: `7dc145e0b4786eb5a107a4a3002251ef062e6afe`;
+- exact base SHA: `7fb4be44d560e5b74595210f83cb6003a57e52a7`;
+- exact base tree: `a47df2a0f9f3658677721dac2d846cb3db6cab06`;
+- local qualification commit: `404b970d12928d1c1db27317614982623abf0208`;
+- qualified source tree: `9212fdfe2412aa711dff937ebf34044d9d00ed77`;
 - storage capability API: `0.1`;
 - server capability API: `0.1`;
 - packaged patch:
-  `mlx-lm-6d21ce4-statebraid-api-0.1.patch`;
+  `mlx-lm-7fb4be44-statebraid-api-0.1.patch`;
 - packaged patch SHA256:
-  `7c6968cea46141219f50f28e6d0b1c7f9e06813c6c18db74c648ec7b906b7e47`.
+  `7ae2816eabf76e1deb650257f32ca2209780c7cf4aef2ffa31e6509561584d8c`.
 
 The qualification commit is provenance for the generated patch. It is not a
 published fork dependency and does not need to exist on a remote for users to
 apply the packaged patch.
+
+This exact reference was requalified after the upstream migration described in
+[`MLX_REFERENCE_REQUALIFICATION_2026-09-08.md`](MLX_REFERENCE_REQUALIFICATION_2026-09-08.md).
+The migration replaces the previous exact MLX-LM reference identity; it does not
+widen the v0.1 supported runtime profile.
 
 ## Install and materialize the reference patch
 
@@ -56,7 +63,7 @@ Prepare MLX-LM from the exact qualified upstream base:
 ```bash
 git clone https://github.com/ml-explore/mlx-lm.git
 cd mlx-lm
-git checkout 6d21ce4b065a2e163fa6de76a9936c61aeb5784a
+git checkout 7fb4be44d560e5b74595210f83cb6003a57e52a7
 git apply --check ../statebraid-mlx.patch
 git apply ../statebraid-mlx.patch
 python -m pip install .
@@ -80,13 +87,16 @@ the server, run:
 statebraid-doctor mlx
 ```
 
-The doctor is capability-based rather than version-string-based. It requires all
-of the following:
+The doctor is capability-and-reference-identity based rather than package-version
+string based. It requires all of the following:
 
 - `STATEBRAID_STORAGE_API_VERSION == "0.1"`;
 - `LRUPromptCache.transactional_storage()`;
 - `STATEBRAID_SERVER_API_VERSION == "0.1"`;
-- request-scoped `GenerationArguments.cache_namespace` support.
+- request-scoped `GenerationArguments.cache_namespace` support;
+- `STATEBRAID_REFERENCE_BASE_REVISION` equal to the exact qualified upstream base;
+- `STATEBRAID_REFERENCE_RUNTIME_QUALIFIED is True`;
+- `STATEBRAID_REFERENCE_STATUS == "reference_qualified"`.
 
 The command exits `0` only when all requirements are present and exits `2` for an
 incompatible or unpatched backend. `statebraid-doctor mlx --json` exposes the same

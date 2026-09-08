@@ -62,8 +62,8 @@ matrix is a separate release gate and is not implied by this support-scope phase
 | Area | v0.1 reference-qualified boundary |
 | --- | --- |
 | Backend | MLX through the packaged StateBraid reference integration |
-| Upstream MLX-LM base | `6d21ce4b065a2e163fa6de76a9936c61aeb5784a` only |
-| Reference patch SHA256 | `7c6968cea46141219f50f28e6d0b1c7f9e06813c6c18db74c648ec7b906b7e47` |
+| Upstream MLX-LM base | `7fb4be44d560e5b74595210f83cb6003a57e52a7` only |
+| Reference patch SHA256 | `7ae2816eabf76e1deb650257f32ca2209780c7cf4aef2ffa31e6509561584d8c` |
 | Storage/server capability | StateBraid API `0.1` / `0.1`; `statebraid-doctor mlx` must pass |
 | Platform | Apple Silicon / macOS |
 | Qualified model | `Ornith-1.5-35B-A3B-MLX` |
@@ -80,6 +80,11 @@ matrix is a separate release gate and is not implied by this support-scope phase
 | Rollback | unset activation and restart on native `LRUPromptCache` |
 | Single-user namespace | missing `cache_namespace` -> `local-default` |
 | Explicit trust-domain token | bounded ASCII token, maximum 128 bytes |
+
+This exact MLX reference was requalified on 2026-09-08 after adopting newer
+upstream MLX-LM internals. The supported profile above is intentionally unchanged;
+only the exact upstream/reference patch identity was replaced. See
+[`MLX_REFERENCE_REQUALIFICATION_2026-09-08.md`](MLX_REFERENCE_REQUALIFICATION_2026-09-08.md).
 
 The qualification profile records the configuration for which end-to-end evidence
 exists. The backend-neutral policy accepts other mechanical sequence/byte budgets,

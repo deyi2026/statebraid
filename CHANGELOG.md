@@ -67,7 +67,7 @@ runtime qualification; tag and release creation remain separate protected gates.
   factual compute telemetry;
 - MLX transactional-storage adapter and a SHA256-frozen reference integration
   patch against exact upstream `mlx-lm` base
-  `6d21ce4b065a2e163fa6de76a9936c61aeb5784a`;
+  `7fb4be44d560e5b74595210f83cb6003a57e52a7`;
 - request-scoped trust-domain cache namespaces with exact cross-domain isolation;
 - `statebraid-doctor` capability/scope diagnostics and `statebraid-reference`
   reference-patch export tooling;
@@ -80,6 +80,9 @@ runtime qualification; tag and release creation remain separate protected gates.
 - product scope narrowed to **agent-aware compute continuity**; task, evidence,
   execution and provider-interruption semantics remain agent-harness/model owned;
 - StateBraid activation remains explicit and default-off;
+- the exact qualified MLX reference moved to upstream `7fb4be44...` plus the
+  requalified StateBraid patch after strict-serial real-model parity; Supported
+  Scope v0.1 remains the same narrow Apple/Ornith/batch/unquantized/1x1 profile;
 - project source distribution is licensed under Apache License 2.0 and retains the separate
   Apple/mlx-lm MIT notice required by the reference-integration provenance.
 

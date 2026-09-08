@@ -24,6 +24,10 @@ from statebraid.cache.policy import (
     CacheKey,
     WorkingSetPolicy,
 )
+from statebraid.integrations.mlx import (
+    REFERENCE_MLX_BASE_SHA,
+    REFERENCE_MLX_COMMIT_SHA,
+)
 
 
 MLX_BACKEND_DESCRIPTOR = BackendDescriptor(
@@ -49,7 +53,10 @@ MLX_BACKEND_DESCRIPTOR = BackendDescriptor(
         ),
     ),
     qualification_profile=BackendQualificationProfile(
-        source_revision="mlx-lm@6d21ce4b065a2e163fa6de76a9936c61aeb5784a + StateBraid reference patch",
+        source_revision=(
+            f"mlx-lm@{REFERENCE_MLX_BASE_SHA} + StateBraid reference patch "
+            f"(qualified source {REFERENCE_MLX_COMMIT_SHA})"
+        ),
         observation_path="patched MLX prompt-cache fetch_nearest_cache + transactional_storage",
         cache_mode="StateBraid exclusive policy; hybrid/non-trimmable reference KV",
         concurrency_profile="prompt=1, decode=1, single-model reference profile",
@@ -57,6 +64,7 @@ MLX_BACKEND_DESCRIPTOR = BackendDescriptor(
         runtime_qualified=True,
         notes=(
             "Qualification applies only to the exact v0.1 supported-scope profile.",
+            "The 2026-09-08 E4 requalification replaced the prior exact MLX-LM base without widening the profile.",
             "Generic trimmable KV, quantized KV, speculative decode and broader concurrency remain unqualified.",
         ),
     ),

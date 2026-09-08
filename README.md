@@ -158,12 +158,16 @@ narrow:
 
 - Apple Silicon / macOS;
 - the packaged reference patch against exact upstream `mlx-lm` base
-  `6d21ce4b065a2e163fa6de76a9936c61aeb5784a`;
+  `7fb4be44d560e5b74595210f83cb6003a57e52a7`;
 - `Ornith-1.5-35B-A3B-MLX`, a Qwen3.6-derived hybrid/non-trimmable cache path;
 - MLX batch generation, model-native thinking, unquantized KV;
 - prompt concurrency `1`, decode concurrency `1`;
 - prompt-cache profile of 8 sequences / 4 GiB in the end-to-end qualification;
 - explicit StateBraid activation, which remains **default-off**.
+
+The exact MLX reference above was requalified on 2026-09-08 after an upstream
+MLX-LM migration. The profile breadth did not change; see
+[`docs/MLX_REFERENCE_REQUALIFICATION_2026-09-08.md`](https://github.com/deyi2026/statebraid/blob/main/docs/MLX_REFERENCE_REQUALIFICATION_2026-09-08.md).
 
 This is **not** a blanket support claim for Qwen models, all MLX models, arbitrary
 MLX-LM commits, generic trimmable KV, quantized KV, draft/speculative decoding,
@@ -186,7 +190,7 @@ statebraid-doctor scope --json
 StateBraid is an independent Python package; it does not vendor the research
 MLX-LM fork. The first backend distribution is a version-bound reference patch
 against clean upstream `ml-explore/mlx-lm` commit
-`6d21ce4b065a2e163fa6de76a9936c61aeb5784a`.
+`7fb4be44d560e5b74595210f83cb6003a57e52a7`.
 
 Install StateBraid from the current checkout or a built wheel, then export its
 packaged reference integration:
@@ -204,7 +208,7 @@ apply by itself is not an installation or compatibility result:
 ```bash
 git clone https://github.com/ml-explore/mlx-lm.git
 cd mlx-lm
-git checkout 6d21ce4b065a2e163fa6de76a9936c61aeb5784a
+git checkout 7fb4be44d560e5b74595210f83cb6003a57e52a7
 git apply --check ../statebraid-mlx.patch
 git apply ../statebraid-mlx.patch
 python -m pip install .
@@ -212,7 +216,8 @@ statebraid-doctor mlx
 ```
 
 Run the doctor from that same environment before activation. It must exit `0`; an
-unpatched, unavailable, or incompatible MLX-LM installation fails closed.
+unpatched, unavailable, incompatible, candidate-only, or wrong-reference MLX-LM
+installation fails closed.
 
 StateBraid activation remains explicit and default-off:
 
