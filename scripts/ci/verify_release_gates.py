@@ -144,6 +144,8 @@ def verify_artifacts(dist_dir: Path) -> None:
 
     with zipfile.ZipFile(wheel) as archive:
         names = set(archive.namelist())
+        if any(name.startswith("qualification/") or "/qualification/" in name for name in names):
+            raise SystemExit("wheel must not contain repository-only qualification assets")
         patch_path = f"statebraid/integrations/mlx/{REFERENCE_PATCH_NAME}"
         managed_patch_path = (
             "statebraid/integrations/llama_cpp_managed/"
@@ -188,6 +190,8 @@ def verify_artifacts(dist_dir: Path) -> None:
 
     with tarfile.open(sdist, "r:gz") as archive:
         names = archive.getnames()
+        if any(name.startswith("qualification/") or "/qualification/" in name for name in names):
+            raise SystemExit("sdist must not contain repository-only qualification assets")
         suffixes = (
             "/CHANGELOG.md",
             "/LICENSE",
