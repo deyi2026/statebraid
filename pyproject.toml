@@ -35,6 +35,7 @@ statebraid-reference = "statebraid.reference:main"
 
 [tool.setuptools.package-data]
 "statebraid.integrations.mlx" = ["*.patch"]
+"statebraid.integrations.llama_cpp_managed" = ["*.patch"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

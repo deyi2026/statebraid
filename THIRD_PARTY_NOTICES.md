@@ -33,3 +33,35 @@ notice above is retained separately because the optional MLX adapter, exact-hit
 generation-safety work, and packaged reference integration were derived from work
 performed against mlx-lm. StateBraid's Apache-2.0 license does not replace or erase
 the upstream MIT copyright and permission notice.
+
+## llama.cpp
+
+StateBraid's experimental managed-storage M1 distribution includes a frozen
+source patch against `llama.cpp`. The upstream source is distributed under the
+MIT License:
+
+> MIT License
+>
+> Copyright (c) 2023-2026 The ggml authors
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all
+> copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+> SOFTWARE.
+
+The notice above is retained because the packaged managed-storage M1 patch
+modifies upstream llama.cpp source files. StateBraid's Apache-2.0 license does
+not replace or erase this upstream MIT copyright and permission notice.

@@ -15,12 +15,37 @@ The managed server prototype is an isolated local branch based on the audited
 upstream source:
 
 - upstream llama.cpp base: `465e49b9cea78a68b9c244ffb48d0ee24a82873d`;
+- upstream base tree: `4e34a10914c334511b880e641a75260d0be6ad0e`;
 - managed handle implementation: `29cad05988c9c48ee26ded83764ae70ae6edf665`;
 - exclusive-policy `clear` primitive: `6e7d910135a4ef586aa89b41e2ceaa2058b2defa`;
 - loopback-only control-plane hardening: `0f75058ccb5c4e0d7bd029d37678435eb0d2458c`;
 - exact-token capture binding: `04329aacab48f91c79cd33490c2b4b33b29a7ef5`;
+- final source tree: `f064027f09970857a7ed53bf258706084a530fdf`;
+- packaged M1 patch SHA256:
+  `6ff061ba996ca5a2ae95dd930099507b31bf8f9aa933a48e628e12a5657bba76`;
 - StateBraid adapter requires `build_info` matching the final
   `04329aacab48f91c79cd33490c2b4b33b29a7ef5` reference.
+
+StateBraid ships the M1 source delta as an experimental, version-bound artifact;
+this does not promote llama.cpp into the v0.1 runtime-qualified support matrix.
+Export it with:
+
+```text
+statebraid-reference llama-cpp-managed --output statebraid-llama-managed-m1.patch
+```
+
+For an exact clean checkout at the audited base, the same command can also perform
+a non-mutating apply check:
+
+```text
+statebraid-reference llama-cpp-managed \
+  --check-base /path/to/llama.cpp \
+  --output statebraid-llama-managed-m1.patch
+```
+
+The apply check fails closed if the checkout HEAD is not exactly
+`465e49b9cea78a68b9c244ffb48d0ee24a82873d`, the checkout is dirty, the packaged
+patch digest differs, or `git apply --check` rejects the source delta.
 
 The patch is opt-in through `--statebraid-managed-cache`. Startup fails closed if
 native `--cache-ram` is non-zero, preventing two independent admission/eviction
