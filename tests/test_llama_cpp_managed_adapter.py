@@ -161,7 +161,10 @@ class LlamaCppManagedAdapterTest(unittest.TestCase):
         self.assertFalse(storage.supports(BackendCapability.ADMISSION_RESIDENCY))
         self.assertFalse(storage.supports(BackendCapability.ROLLBACK))
         self.assertFalse(storage.supports(BackendCapability.NAMESPACE_ISOLATION))
-        self.assertFalse(storage.qualification_profile.runtime_qualified)
+        storage_profile = storage.qualification_profile
+        self.assertIsNotNone(storage_profile)
+        assert storage_profile is not None
+        self.assertFalse(storage_profile.runtime_qualified)
 
         descriptor = LLAMA_CPP_MANAGED_BACKEND_DESCRIPTOR
         self.assertTrue(
@@ -175,7 +178,10 @@ class LlamaCppManagedAdapterTest(unittest.TestCase):
         )
         self.assertFalse(descriptor.supports(BackendCapability.NAMESPACE_ISOLATION))
         self.assertFalse(descriptor.supports(BackendCapability.ROLLBACK))
-        self.assertFalse(descriptor.qualification_profile.runtime_qualified)
+        descriptor_profile = descriptor.qualification_profile
+        self.assertIsNotNone(descriptor_profile)
+        assert descriptor_profile is not None
+        self.assertFalse(descriptor_profile.runtime_qualified)
         self.assertEqual(descriptor.integration_level, "partial")
 
     def test_managed_source_is_distinct_from_stock_reference(self):

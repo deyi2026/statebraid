@@ -36,6 +36,10 @@ def tracked_text_files() -> list[Path]:
 
 def verify_source() -> None:
     from statebraid import COMPUTE_CONTRACT_VERSION, SUPPORT_SCOPE_VERSION
+    from statebraid.integrations.llama_cpp_managed import (
+        MANAGED_LLAMA_CPP_PATCH_SHA256,
+        managed_patch_bytes,
+    )
     from statebraid.integrations.mlx import REFERENCE_PATCH_SHA256, reference_patch_bytes
     from statebraid.support import support_scope
 
@@ -54,6 +58,10 @@ def verify_source() -> None:
     patch_digest = hashlib.sha256(reference_patch_bytes()).hexdigest()
     if patch_digest != REFERENCE_PATCH_SHA256:
         raise SystemExit("packaged MLX reference patch digest drifted")
+
+    managed_patch_digest = hashlib.sha256(managed_patch_bytes()).hexdigest()
+    if managed_patch_digest != MANAGED_LLAMA_CPP_PATCH_SHA256:
+        raise SystemExit("packaged llama.cpp managed M1 patch digest drifted")
 
     violations: list[str] = []
     for path in tracked_text_files():
@@ -125,6 +133,10 @@ def _verify_distribution_metadata(metadata: object, version: str, label: str) ->
 
 def verify_artifacts(dist_dir: Path) -> None:
     from statebraid import __version__
+    from statebraid.integrations.llama_cpp_managed import (
+        MANAGED_LLAMA_CPP_PATCH_NAME,
+        MANAGED_LLAMA_CPP_PATCH_SHA256,
+    )
     from statebraid.integrations.mlx import REFERENCE_PATCH_NAME, REFERENCE_PATCH_SHA256
 
     wheel = _single(sorted(dist_dir.glob("*.whl")), "wheel")
@@ -133,9 +145,14 @@ def verify_artifacts(dist_dir: Path) -> None:
     with zipfile.ZipFile(wheel) as archive:
         names = set(archive.namelist())
         patch_path = f"statebraid/integrations/mlx/{REFERENCE_PATCH_NAME}"
+        managed_patch_path = (
+            "statebraid/integrations/llama_cpp_managed/"
+            f"{MANAGED_LLAMA_CPP_PATCH_NAME}"
+        )
         required = {
             "statebraid/support.py",
             patch_path,
+            managed_patch_path,
         }
         missing = required - names
         if missing:
@@ -144,6 +161,10 @@ def verify_artifacts(dist_dir: Path) -> None:
         patch_digest = hashlib.sha256(archive.read(patch_path)).hexdigest()
         if patch_digest != REFERENCE_PATCH_SHA256:
             raise SystemExit("wheel reference patch digest mismatch")
+
+        managed_patch_digest = hashlib.sha256(archive.read(managed_patch_path)).hexdigest()
+        if managed_patch_digest != MANAGED_LLAMA_CPP_PATCH_SHA256:
+            raise SystemExit("wheel llama.cpp managed M1 patch digest mismatch")
 
         metadata_paths = [name for name in names if name.endswith(".dist-info/METADATA")]
         entrypoint_paths = [name for name in names if name.endswith(".dist-info/entry_points.txt")]
@@ -177,6 +198,10 @@ def verify_artifacts(dist_dir: Path) -> None:
             "/pyproject.toml",
             "/src/statebraid/support.py",
             f"/src/statebraid/integrations/mlx/{REFERENCE_PATCH_NAME}",
+            (
+                "/src/statebraid/integrations/llama_cpp_managed/"
+                f"{MANAGED_LLAMA_CPP_PATCH_NAME}"
+            ),
         )
         for suffix in suffixes:
             if not any(name.endswith(suffix) for name in names):

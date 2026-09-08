@@ -1,0 +1,782 @@
+diff --git a/common/arg.cpp b/common/arg.cpp
+index 015196ca1..749464f63 100644
+--- a/common/arg.cpp
++++ b/common/arg.cpp
+@@ -1722,6 +1722,13 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
+             params.cache_ram_mib = value;
+         }
+     ).set_env("LLAMA_ARG_CACHE_RAM").set_examples({LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_CLI}));
++    add_opt(common_arg(
++        {"--statebraid-managed-cache"},
++        "enable experimental external-policy RAM prompt-state handles; requires --cache-ram 0 (default: disabled)",
++        [](common_params & params) {
++            params.statebraid_managed_cache = true;
++        }
++    ).set_examples({LLAMA_EXAMPLE_SERVER}));
+     add_opt(common_arg(
+         {"-kvu", "--kv-unified"},
+         {"-no-kvu", "--no-kv-unified"},
+diff --git a/common/common.h b/common/common.h
+index 63d0badd0..a8b96bc62 100644
+--- a/common/common.h
++++ b/common/common.h
+@@ -630,6 +630,7 @@ struct common_params {
+     int32_t kv_unified_per_slot = 0;     // max context per parallel slot; 0 = unset
+     int32_t checkpoint_min_step = 8192;  // minimum spacing between context checkpoints
+     int32_t cache_ram_mib       = 8192;  // -1 = no limit, 0 - disable, 1 = 1 MiB, etc.
++    bool statebraid_managed_cache = false; // experimental external-policy RAM state handles
+ 
+     std::string hostname      = "127.0.0.1";
+     std::string public_path   = "";                                                                         // NOLINT
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index f78cfb36d..afbe23af0 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -23,6 +23,7 @@
+ #include <exception>
+ #include <memory>
+ #include <filesystem>
++#include <limits>
+ #include <random>
+ #include <utility>
+ #include <fstream>
+@@ -38,6 +39,17 @@
+ 
+ constexpr int HTTP_POLLING_SECONDS = 1;
+ 
++static std::string statebraid_managed_cache_new_epoch() {
++    std::random_device rd;
++    const uint64_t a = (uint64_t(rd()) << 32) ^ uint64_t(rd());
++    const uint64_t b = (uint64_t(rd()) << 32) ^ uint64_t(rd()) ^ uint64_t(ggml_time_us());
++    return string_format("%016" PRIx64 "%016" PRIx64, a, b);
++}
++
++static bool statebraid_managed_cache_loopback_host(const std::string & host) {
++    return host == "localhost" || host == "127.0.0.1" || host == "::1";
++}
++
+ static common_speculative_output_limits server_output_limits(const common_params & params) {
+     if (params.embedding ||
+             (params.pooling_type != LLAMA_POOLING_TYPE_UNSPECIFIED && params.pooling_type != LLAMA_POOLING_TYPE_NONE)) {
+@@ -914,6 +926,12 @@ private:
+ 
+     std::unique_ptr<server_prompt_cache> prompt_cache;
+ 
++    // Experimental StateBraid M1 physical store. StateBraid owns policy;
++    // llama.cpp owns only opaque prompt/checkpoint/sequence-state payloads.
++    std::map<std::string, server_prompt_cache_state> statebraid_managed_states;
++    std::string statebraid_managed_epoch;
++    uint64_t statebraid_managed_next_handle = 1;
++
+     server_metrics metrics;
+ 
+     // queued prompt stats - llama_decode() is async, so the timing is only valid after a sync
+@@ -936,6 +954,12 @@ private:
+     int64_t t_last_load_progress_ms = 0;
+ 
+     void destroy() {
++        // Managed RAM handles are process/model-instance local.  Sleeping or
++        // unloading the model invalidates them just like a full restart.
++        statebraid_managed_states.clear();
++        statebraid_managed_epoch.clear();
++        statebraid_managed_next_handle = 1;
++
+         spec.reset();
+         spec_init.reset();
+ 
+@@ -1011,6 +1035,14 @@ private:
+         const bool is_resume = sleeping;
+ 
+         params_base = params;
++        if (params_base.statebraid_managed_cache && params_base.cache_ram_mib != 0) {
++            SRV_ERR("%s", "--statebraid-managed-cache requires --cache-ram 0 to avoid split-brain cache policy\n");
++            return false;
++        }
++        if (params_base.statebraid_managed_cache && !statebraid_managed_cache_loopback_host(params_base.hostname)) {
++            SRV_ERR("StateBraid managed cache M1 requires a loopback --host; found '%s'\n", params_base.hostname.c_str());
++            return false;
++        }
+         const auto output_limits = server_output_limits(params_base);
+         params_base.n_outputs_max = output_limits.total;
+         params_base.n_outputs_max_per_seq = output_limits.per_seq;
+@@ -1348,6 +1380,17 @@ private:
+             batch.init(std::max(n_batch, params_base.n_parallel), n_embd);
+         }
+ 
++        if (params_base.statebraid_managed_cache) {
++            statebraid_managed_states.clear();
++            statebraid_managed_epoch = statebraid_managed_cache_new_epoch();
++            statebraid_managed_next_handle = 1;
++            SRV_INF("statebraid managed cache enabled, epoch = %s\n", statebraid_managed_epoch.c_str());
++        } else {
++            statebraid_managed_states.clear();
++            statebraid_managed_epoch.clear();
++            statebraid_managed_next_handle = 1;
++        }
++
+         if (params_base.cache_ram_mib != 0) {
+             if (params_base.cache_ram_mib < 0) {
+                 SRV_TRC("prompt cache is enabled, size limit: %s\n", "no limit");
+@@ -2667,6 +2710,213 @@ private:
+                     res->n_erased = n_erased;
+                     queue_results.send(std::move(res));
+                 } break;
++            case SERVER_TASK_TYPE_STATEBRAID_CACHE:
++                {
++                    if (!params_base.statebraid_managed_cache) {
++                        send_error(task, "StateBraid managed cache is disabled", ERROR_TYPE_NOT_SUPPORTED);
++                        break;
++                    }
++
++                    const auto & action = task.statebraid_cache_action;
++                    auto send_json = [&](json data) {
++                        auto res = std::make_unique<server_task_result_router>();
++                        res->id = task.id;
++                        res->data = std::move(data);
++                        queue_results.send(std::move(res));
++                    };
++                    auto require_epoch = [&]() -> bool {
++                        if (action.epoch != statebraid_managed_epoch) {
++                            send_error(task, "Invalid or stale StateBraid managed-cache epoch", ERROR_TYPE_INVALID_REQUEST);
++                            return false;
++                        }
++                        return true;
++                    };
++
++                    if (action.action == "list") {
++                        json handles = json::array();
++                        size_t total_bytes = 0;
++                        size_t total_tokens = 0;
++                        for (const auto & kv : statebraid_managed_states) {
++                            handles.push_back({
++                                {"handle", kv.first},
++                                {"n_tokens", kv.second.prompt.tokens.size()},
++                                {"n_bytes", kv.second.size()},
++                            });
++                            total_bytes += kv.second.size();
++                            total_tokens += kv.second.prompt.tokens.size();
++                        }
++                        send_json({
++                            {"enabled", true},
++                            {"epoch", statebraid_managed_epoch},
++                            {"n_handles", statebraid_managed_states.size()},
++                            {"n_tokens", total_tokens},
++                            {"n_bytes", total_bytes},
++                            {"handles", std::move(handles)},
++                        });
++                        break;
++                    }
++
++                    if (!require_epoch()) {
++                        break;
++                    }
++
++                    if (action.action == "drop") {
++                        const auto it = statebraid_managed_states.find(action.handle);
++                        if (it == statebraid_managed_states.end()) {
++                            send_error(task, "Unknown StateBraid managed-cache handle", ERROR_TYPE_INVALID_REQUEST);
++                            break;
++                        }
++                        const size_t n_tokens = it->second.prompt.tokens.size();
++                        const size_t n_bytes = it->second.size();
++                        statebraid_managed_states.erase(it);
++                        send_json({
++                            {"success", true},
++                            {"epoch", statebraid_managed_epoch},
++                            {"handle", action.handle},
++                            {"n_tokens", n_tokens},
++                            {"n_bytes", n_bytes},
++                        });
++                        break;
++                    }
++
++                    const int id_slot = action.id_slot;
++                    if (id_slot < 0 || id_slot >= (int) slots.size()) {
++                        send_error(task, "Invalid slot ID", ERROR_TYPE_INVALID_REQUEST);
++                        break;
++                    }
++                    server_slot * slot = get_slot_by_id(id_slot);
++                    if (slot == nullptr || slot->id != id_slot) {
++                        send_error(task, "Invalid slot ID", ERROR_TYPE_INVALID_REQUEST);
++                        break;
++                    }
++                    if (slot->is_processing()) {
++                        SRV_DBG("requested slot is unavailable, defer StateBraid cache task, id_task = %d\n", task.id);
++                        queue_tasks.defer(std::move(task));
++                        break;
++                    }
++
++                    if (action.action == "clear") {
++                        const size_t n_cleared = slot->prompt.tokens.size();
++                        slot->prompt_clear();
++                        send_json({
++                            {"success", true},
++                            {"epoch", statebraid_managed_epoch},
++                            {"id_slot", id_slot},
++                            {"n_cleared", n_cleared},
++                        });
++                        break;
++                    }
++
++                    if (action.action == "capture") {
++                        if (slot->prompt.tokens.size() == 0) {
++                            send_error(task, "Cannot capture an empty slot prompt", ERROR_TYPE_INVALID_REQUEST);
++                            break;
++                        }
++                        if (action.expected_tokens.size() != slot->prompt.tokens.size()) {
++                            send_error(task, "expected_tokens do not match current slot prompt", ERROR_TYPE_INVALID_REQUEST);
++                            break;
++                        }
++                        bool token_identity_matches = true;
++                        for (size_t i = 0; i < action.expected_tokens.size(); ++i) {
++                            if (action.expected_tokens[i] != slot->prompt.tokens[i]) {
++                                token_identity_matches = false;
++                                break;
++                            }
++                        }
++                        if (!token_identity_matches) {
++                            send_error(task, "expected_tokens do not match current slot prompt", ERROR_TYPE_INVALID_REQUEST);
++                            break;
++                        }
++
++                        const size_t state_size_tgt = llama_state_seq_get_size_ext(ctx_tgt, slot->id, LLAMA_STATE_SEQ_FLAGS_NONE);
++                        const size_t state_size_dft = ctx_dft ? llama_state_seq_get_size_ext(ctx_dft, slot->id, LLAMA_STATE_SEQ_FLAGS_NONE) : 0;
++
++                        server_prompt_cache_state state {
++                            /*.prompt =*/ slot->prompt.clone(),
++                            /*.data   =*/ {
++                                /*.main =*/ std::vector<uint8_t>(state_size_tgt),
++                                /*.drft =*/ std::vector<uint8_t>(state_size_dft),
++                            },
++                        };
++
++                        const size_t n_tgt = llama_state_seq_get_data_ext(
++                            ctx_tgt, state.data.main.data(), state.data.main.size(), slot->id, LLAMA_STATE_SEQ_FLAGS_NONE);
++                        if (n_tgt != state.data.main.size()) {
++                            send_error(task, "Unable to capture target sequence state", ERROR_TYPE_SERVER);
++                            break;
++                        }
++                        if (ctx_dft) {
++                            const size_t n_dft = llama_state_seq_get_data_ext(
++                                ctx_dft, state.data.drft.data(), state.data.drft.size(), slot->id, LLAMA_STATE_SEQ_FLAGS_NONE);
++                            if (n_dft != state.data.drft.size()) {
++                                send_error(task, "Unable to capture draft sequence state", ERROR_TYPE_SERVER);
++                                break;
++                            }
++                        }
++
++                        const std::string handle = string_format("sbm1-%016" PRIx64, statebraid_managed_next_handle++);
++                        const size_t n_tokens = state.prompt.tokens.size();
++                        const size_t n_bytes = state.size();
++                        statebraid_managed_states.emplace(handle, std::move(state));
++                        send_json({
++                            {"success", true},
++                            {"epoch", statebraid_managed_epoch},
++                            {"handle", handle},
++                            {"id_slot", id_slot},
++                            {"n_tokens", n_tokens},
++                            {"n_bytes", n_bytes},
++                        });
++                        break;
++                    }
++
++                    if (action.action == "restore") {
++                        const auto it = statebraid_managed_states.find(action.handle);
++                        if (it == statebraid_managed_states.end()) {
++                            send_error(task, "Unknown StateBraid managed-cache handle", ERROR_TYPE_INVALID_REQUEST);
++                            break;
++                        }
++                        const auto & state = it->second;
++                        if (state.prompt.tokens.size() > (size_t) slot->n_ctx) {
++                            send_error(task, "Managed prompt state does not fit in the slot context", ERROR_TYPE_INVALID_REQUEST);
++                            break;
++                        }
++
++                        slot->prompt_clear();
++                        const size_t n_tgt = llama_state_seq_set_data_ext(
++                            ctx_tgt, state.data.main.data(), state.data.main.size(), slot->id, 0);
++                        if (n_tgt != state.data.main.size()) {
++                            slot->prompt_clear();
++                            send_error(task, "Unable to restore target sequence state", ERROR_TYPE_SERVER);
++                            break;
++                        }
++                        if (!state.data.drft.empty()) {
++                            if (!ctx_dft) {
++                                slot->prompt_clear();
++                                send_error(task, "Managed state requires an unavailable draft context", ERROR_TYPE_INVALID_REQUEST);
++                                break;
++                            }
++                            const size_t n_dft = llama_state_seq_set_data_ext(
++                                ctx_dft, state.data.drft.data(), state.data.drft.size(), slot->id, 0);
++                            if (n_dft != state.data.drft.size()) {
++                                slot->prompt_clear();
++                                send_error(task, "Unable to restore draft sequence state", ERROR_TYPE_SERVER);
++                                break;
++                            }
++                        }
++                        slot->prompt = state.prompt.clone();
++                        send_json({
++                            {"success", true},
++                            {"epoch", statebraid_managed_epoch},
++                            {"handle", action.handle},
++                            {"id_slot", id_slot},
++                            {"n_tokens", state.prompt.tokens.size()},
++                            {"n_bytes", state.size()},
++                        });
++                        break;
++                    }
++
++                    send_error(task, "Invalid StateBraid managed-cache action", ERROR_TYPE_INVALID_REQUEST);
++                } break;
+             case SERVER_TASK_TYPE_GET_LORA:
+                 {
+                     // TODO @ngxson : make lora_adapters a dedicated member of server_context
+@@ -4785,6 +5035,115 @@ void server_routes::init_routes() {
+         return res;
+     };
+ 
++    this->get_statebraid_cache = [this](const server_http_req & req) {
++        auto res = create_response();
++        if (!params.statebraid_managed_cache) {
++            res->error(format_error_response("StateBraid managed cache is disabled", ERROR_TYPE_NOT_SUPPORTED));
++            return res;
++        }
++
++        server_task task(SERVER_TASK_TYPE_STATEBRAID_CACHE);
++        task.id = res->rd.get_new_id();
++        task.statebraid_cache_action.action = "list";
++        res->rd.post_task(std::move(task), true);
++
++        auto result = res->rd.next(req.should_stop);
++        if (!result) {
++            GGML_ASSERT(req.should_stop());
++            return res;
++        }
++        if (result->is_error()) {
++            res->error(result->to_json());
++            return res;
++        }
++        res->ok(result->to_json());
++        return res;
++    };
++
++    this->post_statebraid_cache = [this](const server_http_req & req) {
++        auto res = create_response();
++        if (!params.statebraid_managed_cache) {
++            res->error(format_error_response("StateBraid managed cache is disabled", ERROR_TYPE_NOT_SUPPORTED));
++            return res;
++        }
++
++        json data;
++        try {
++            data = json::parse(req.body);
++        } catch (const std::exception &) {
++            res->error(format_error_response("Invalid JSON body", ERROR_TYPE_INVALID_REQUEST));
++            return res;
++        }
++        if (!data.is_object()) {
++            res->error(format_error_response("Request body must be an object", ERROR_TYPE_INVALID_REQUEST));
++            return res;
++        }
++
++        if (!data.contains("action") || !data.at("action").is_string()) {
++            res->error(format_error_response("action must be a string", ERROR_TYPE_INVALID_REQUEST));
++            return res;
++        }
++        const std::string action = data.at("action").get<std::string>();
++        if (action != "capture" && action != "restore" && action != "drop" && action != "clear") {
++            res->error(format_error_response("Invalid StateBraid managed-cache action", ERROR_TYPE_INVALID_REQUEST));
++            return res;
++        }
++        if (!data.contains("epoch") || !data.at("epoch").is_string()) {
++            res->error(format_error_response("epoch must be a string", ERROR_TYPE_INVALID_REQUEST));
++            return res;
++        }
++
++        server_task task(SERVER_TASK_TYPE_STATEBRAID_CACHE);
++        task.id = res->rd.get_new_id();
++        task.statebraid_cache_action.action = action;
++        task.statebraid_cache_action.epoch = data.at("epoch").get<std::string>();
++        if (action == "capture" || action == "restore" || action == "clear") {
++            if (!data.contains("id_slot") || !data.at("id_slot").is_number_integer()) {
++                res->error(format_error_response("id_slot must be an integer", ERROR_TYPE_INVALID_REQUEST));
++                return res;
++            }
++            task.statebraid_cache_action.id_slot = data.at("id_slot").get<int>();
++        }
++        if (action == "capture") {
++            if (!data.contains("expected_tokens") || !data.at("expected_tokens").is_array() || data.at("expected_tokens").empty()) {
++                res->error(format_error_response("expected_tokens must be a non-empty integer array", ERROR_TYPE_INVALID_REQUEST));
++                return res;
++            }
++            for (const auto & value : data.at("expected_tokens")) {
++                if (!value.is_number_integer()) {
++                    res->error(format_error_response("expected_tokens must be a non-empty integer array", ERROR_TYPE_INVALID_REQUEST));
++                    return res;
++                }
++                const int64_t token = value.get<int64_t>();
++                if (token < std::numeric_limits<llama_token>::min() || token > std::numeric_limits<llama_token>::max()) {
++                    res->error(format_error_response("expected_tokens contains an out-of-range token", ERROR_TYPE_INVALID_REQUEST));
++                    return res;
++                }
++                task.statebraid_cache_action.expected_tokens.push_back((llama_token) token);
++            }
++        }
++        if (action == "restore" || action == "drop") {
++            if (!data.contains("handle") || !data.at("handle").is_string()) {
++                res->error(format_error_response("handle must be a string", ERROR_TYPE_INVALID_REQUEST));
++                return res;
++            }
++            task.statebraid_cache_action.handle = data.at("handle").get<std::string>();
++        }
++
++        res->rd.post_task(std::move(task), true);
++        auto result = res->rd.next(req.should_stop);
++        if (!result) {
++            GGML_ASSERT(req.should_stop());
++            return res;
++        }
++        if (result->is_error()) {
++            res->error(result->to_json());
++            return res;
++        }
++        res->ok(result->to_json());
++        return res;
++    };
++
+     this->get_props = [this](const server_http_req &) {
+         auto res = create_response(true);
+         // note: do NOT use ctx_server here, this endpoint must be accessible during sleep
+diff --git a/tools/server/server-context.h b/tools/server/server-context.h
+index 0acbbffa9..34e8060a4 100644
+--- a/tools/server/server-context.h
++++ b/tools/server/server-context.h
+@@ -132,6 +132,8 @@ struct server_routes {
+     server_http_context::handler_t get_metrics;
+     server_http_context::handler_t get_slots;
+     server_http_context::handler_t post_slots;
++    server_http_context::handler_t get_statebraid_cache;
++    server_http_context::handler_t post_statebraid_cache;
+     server_http_context::handler_t get_props;
+     server_http_context::handler_t post_props;
+     server_http_context::handler_t post_infill;
+diff --git a/tools/server/server-task.h b/tools/server/server-task.h
+index 9c99143f8..7405477e5 100644
+--- a/tools/server/server-task.h
++++ b/tools/server/server-task.h
+@@ -25,6 +25,7 @@ enum server_task_type {
+     SERVER_TASK_TYPE_SLOT_SAVE,
+     SERVER_TASK_TYPE_SLOT_RESTORE,
+     SERVER_TASK_TYPE_SLOT_ERASE,
++    SERVER_TASK_TYPE_STATEBRAID_CACHE,
+     SERVER_TASK_TYPE_GET_LORA,
+     SERVER_TASK_TYPE_SET_LORA,
+ };
+@@ -169,6 +170,16 @@ struct server_task {
+     };
+     slot_action slot_action;
+ 
++    // used by SERVER_TASK_TYPE_STATEBRAID_CACHE
++    struct statebraid_cache_action {
++        std::string action;
++        int id_slot = -1;
++        std::string handle;
++        std::string epoch;
++        llama_tokens expected_tokens;
++    };
++    statebraid_cache_action statebraid_cache_action;
++
+     // used by SERVER_TASK_TYPE_METRICS
+     bool metrics_reset_bucket = false;
+ 
+diff --git a/tools/server/server.cpp b/tools/server/server.cpp
+index 22378b38c..5f2252ef3 100644
+--- a/tools/server/server.cpp
++++ b/tools/server/server.cpp
+@@ -231,6 +231,8 @@ int llama_server(common_params & params, int argc, char ** argv) {
+         routes.post_lora_adapters          = models_routes->proxy_post;
+         routes.get_slots                   = models_routes->proxy_get;
+         routes.post_slots                  = models_routes->proxy_post;
++        routes.get_statebraid_cache        = models_routes->proxy_get;
++        routes.post_statebraid_cache       = models_routes->proxy_post;
+ 
+         // custom routes for router
+         routes.get_props                   = models_routes->get_router_props;
+@@ -284,6 +286,8 @@ int llama_server(common_params & params, int argc, char ** argv) {
+     // Save & load slots
+     ctx_http.get ("/slots",                    ex_wrapper(routes.get_slots));
+     ctx_http.post("/slots/:id_slot",           ex_wrapper(routes.post_slots));
++    ctx_http.get ("/statebraid/cache",         ex_wrapper(routes.get_statebraid_cache));
++    ctx_http.post("/statebraid/cache",         ex_wrapper(routes.post_statebraid_cache));
+ 
+     // resumable streaming: a child binds the local session factories, the router binds
+     // proxies that resolve the owning child, see server-stream.h
+diff --git a/tools/server/tests/unit/test_statebraid_managed_cache.py b/tools/server/tests/unit/test_statebraid_managed_cache.py
+new file mode 100644
+index 000000000..2b72e2ad4
+--- /dev/null
++++ b/tools/server/tests/unit/test_statebraid_managed_cache.py
+@@ -0,0 +1,242 @@
++import pytest
++from utils import *
++
++
++server = ServerPreset.tinyllama2()
++
++
++@pytest.fixture(autouse=True)
++def create_server():
++    global server
++    server = ServerPreset.tinyllama2()
++    server.temperature = 0.0
++    server.n_slots = 1
++    server.cache_ram = 0
++    server.statebraid_managed_cache = True
++    yield
++    server.stop()
++
++
++def get_store():
++    res = server.make_request("GET", "/statebraid/cache")
++    assert res.status_code == 200
++    return res.body
++
++
++def tokenize(prompt: str):
++    res = server.make_request("POST", "/tokenize", data={
++        "content": prompt,
++        "add_special": False,
++    })
++    assert res.status_code == 200
++    return res.body["tokens"]
++
++
++def completion(prompt):
++    res = server.make_request("POST", "/completion", data={
++        "prompt": prompt,
++        "id_slot": 0,
++        "cache_prompt": True,
++        "n_predict": 0,
++    })
++    assert res.status_code == 200
++    return res.body
++
++
++def post_cache(data):
++    return server.make_request("POST", "/statebraid/cache", data=data)
++
++
++def test_statebraid_managed_cache_lifecycle_is_non_destructive_and_fail_closed():
++    server.start()
++
++    initial = get_store()
++    assert initial["enabled"] is True
++    assert initial["n_handles"] == 0
++    assert initial["n_tokens"] == 0
++    assert initial["n_bytes"] == 0
++    epoch = initial["epoch"]
++    assert isinstance(epoch, str) and len(epoch) == 32
++
++    base = tokenize("StateBraid managed RAM lifecycle. " + "alpha beta gamma delta " * 16)
++    extension = base + tokenize("epsilon zeta eta theta")
++
++    cold = completion(base)
++    assert cold["timings"]["cache_n"] == 0
++    assert cold["timings"]["prompt_n"] == len(base)
++
++    wrong_identity = post_cache({
++        "action": "capture",
++        "epoch": epoch,
++        "id_slot": 0,
++        "expected_tokens": base[:-1] + [base[-1] + 1],
++    })
++    assert wrong_identity.status_code == 400
++    assert get_store()["n_handles"] == 0
++
++    captured = post_cache({
++        "action": "capture",
++        "epoch": epoch,
++        "id_slot": 0,
++        "expected_tokens": base,
++    })
++    assert captured.status_code == 200
++    handle = captured.body["handle"]
++    assert handle.startswith("sbm1-")
++    assert captured.body["n_tokens"] > 0
++    assert captured.body["n_bytes"] > 0
++
++    listed = get_store()
++    assert listed["n_handles"] == 1
++    assert listed["handles"][0]["handle"] == handle
++    assert listed["n_bytes"] == captured.body["n_bytes"]
++
++    restore_rows = []
++    for _ in range(2):
++        cleared = post_cache({
++            "action": "clear",
++            "epoch": epoch,
++            "id_slot": 0,
++        })
++        assert cleared.status_code == 200
++        assert cleared.body["n_cleared"] > 0
++
++        restored = post_cache({
++            "action": "restore",
++            "epoch": epoch,
++            "id_slot": 0,
++            "handle": handle,
++        })
++        assert restored.status_code == 200
++        assert restored.body["handle"] == handle
++
++        resumed = completion(extension)
++        cache_n = resumed["timings"]["cache_n"]
++        prompt_n = resumed["timings"]["prompt_n"]
++        assert cache_n > 0
++        assert prompt_n > 0
++        restore_rows.append((cache_n, prompt_n))
++
++        # Restore is intentionally non-destructive: the same handle remains
++        # resident and reusable after each restore.
++        assert get_store()["n_handles"] == 1
++
++    assert restore_rows[0] == restore_rows[1]
++
++    wrong_epoch = post_cache({
++        "action": "restore",
++        "epoch": epoch + "stale",
++        "id_slot": 0,
++        "handle": handle,
++    })
++    assert wrong_epoch.status_code == 400
++
++    invalid_slot = post_cache({
++        "action": "restore",
++        "epoch": epoch,
++        "id_slot": 999,
++        "handle": handle,
++    })
++    assert invalid_slot.status_code == 400
++
++    unknown_handle = post_cache({
++        "action": "restore",
++        "epoch": epoch,
++        "id_slot": 0,
++        "handle": "missing",
++    })
++    assert unknown_handle.status_code == 400
++
++    dropped = post_cache({
++        "action": "drop",
++        "epoch": epoch,
++        "handle": handle,
++    })
++    assert dropped.status_code == 200
++    assert get_store()["n_handles"] == 0
++
++    restore_after_drop = post_cache({
++        "action": "restore",
++        "epoch": epoch,
++        "id_slot": 0,
++        "handle": handle,
++    })
++    assert restore_after_drop.status_code == 400
++
++
++def test_statebraid_managed_cache_rejects_invalid_api_shapes_and_empty_capture():
++    server.start()
++    epoch = get_store()["epoch"]
++
++    for body in (
++        {"action": "capture", "id_slot": 0},
++        {"action": 7, "epoch": epoch},
++        {"action": "capture", "epoch": 7, "id_slot": 0},
++        {"action": "capture", "epoch": epoch, "id_slot": "0"},
++        {"action": "capture", "epoch": epoch, "id_slot": 0, "expected_tokens": []},
++        {"action": "capture", "epoch": epoch, "id_slot": 0, "expected_tokens": ["bad"]},
++        {"action": "restore", "epoch": epoch, "id_slot": 0},
++        {"action": "drop", "epoch": epoch},
++        {"action": "bogus", "epoch": epoch},
++    ):
++        res = post_cache(body)
++        assert res.status_code == 400
++
++    empty = post_cache({
++        "action": "capture",
++        "epoch": epoch,
++        "id_slot": 0,
++        "expected_tokens": [1],
++    })
++    assert empty.status_code == 400
++
++
++def test_statebraid_managed_cache_epoch_changes_across_restart():
++    server.start()
++    epoch1 = get_store()["epoch"]
++    prompt = tokenize("StateBraid restart epoch qualification.")
++    completion(prompt)
++    captured = post_cache({
++        "action": "capture",
++        "epoch": epoch1,
++        "id_slot": 0,
++        "expected_tokens": prompt,
++    })
++    assert captured.status_code == 200
++    handle = captured.body["handle"]
++
++    server.stop()
++    server.start()
++
++    epoch2 = get_store()["epoch"]
++    assert epoch2 != epoch1
++    assert get_store()["n_handles"] == 0
++
++    stale = post_cache({
++        "action": "restore",
++        "epoch": epoch1,
++        "id_slot": 0,
++        "handle": handle,
++    })
++    assert stale.status_code == 400
++
++
++def test_statebraid_managed_cache_is_opt_in():
++    server.statebraid_managed_cache = False
++    server.start()
++
++    res = server.make_request("GET", "/statebraid/cache")
++    assert res.status_code != 200
++    assert "disabled" in str(res.body).lower()
++
++
++def test_statebraid_managed_cache_rejects_native_ram_cache_split_brain():
++    server.cache_ram = 8
++    with pytest.raises(RuntimeError):
++        server.start(timeout_seconds=10)
++
++
++def test_statebraid_managed_cache_rejects_non_loopback_bind():
++    server.server_host = "0.0.0.0"
++    with pytest.raises(RuntimeError):
++        server.start(timeout_seconds=10)
+diff --git a/tools/server/tests/utils.py b/tools/server/tests/utils.py
+index 826aef2d5..b9055a9f8 100644
+--- a/tools/server/tests/utils.py
++++ b/tools/server/tests/utils.py
+@@ -113,6 +113,7 @@ class ServerProcess:
+     media_path: str | None = None
+     sleep_idle_seconds: int | None = None
+     cache_ram: int | None = None
++    statebraid_managed_cache: bool = False
+     no_cache_idle_slots: bool = False
+     log_path: str | None = None
+     ui_mcp_proxy: bool = False
+@@ -278,6 +279,8 @@ class ServerProcess:
+             server_args.extend(["--sleep-idle-seconds", self.sleep_idle_seconds])
+         if self.cache_ram is not None:
+             server_args.extend(["--cache-ram", self.cache_ram])
++        if self.statebraid_managed_cache:
++            server_args.append("--statebraid-managed-cache")
+         if self.no_cache_idle_slots:
+             server_args.append("--no-cache-idle-slots")
+         if self.ui_mcp_proxy:
