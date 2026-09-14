@@ -29,6 +29,7 @@ class FakeManagedTransport:
         self.drop_failures_before_apply = 0
         self.drop_response_loss_after_apply = False
         self.capture_response_loss_after_apply = False
+        self.capture_evicted = []
 
     def get_json(self, path):
         if path == "/props":
@@ -108,6 +109,10 @@ class FakeManagedTransport:
             self.n_cleared = n_tokens
             if self.capture_response_loss_after_apply:
                 raise OSError("injected response loss after capture")
+            evicted = list(self.capture_evicted)
+            self.capture_evicted = []
+            for evicted_handle in evicted:
+                self.handles.pop(evicted_handle, None)
             return {
                 "success": True,
                 "epoch": self.epoch,
@@ -115,6 +120,7 @@ class FakeManagedTransport:
                 "id_slot": payload["id_slot"],
                 "n_tokens": n_tokens,
                 "n_bytes": n_bytes,
+                "evicted": evicted,
             }
 
         handle = payload["handle"]
@@ -215,7 +221,8 @@ class LlamaCppManagedAdapterTest(unittest.TestCase):
         transport = FakeManagedTransport()
         adapter = self.adapter(transport)
         transport.capture_queue.append((3, 100))
-        state = adapter.capture_current_state([1, 2, 3])
+        state, evicted = adapter.capture_current_state([1, 2, 3])
+        self.assertEqual(evicted, [])
         self.assertEqual(state.n_tokens, 3)
         self.assertEqual(state.nbytes, 100)
         capture_action = next(row for row in transport.actions if row[0] == "capture")
@@ -485,7 +492,7 @@ class LlamaCppManagedAdapterTest(unittest.TestCase):
 
         # Simulate an out-of-band capture this registry never saw.
         transport.capture_queue.append((3, 100))
-        orphan = self.adapter(transport).capture_current_state([9, 8, 7])
+        orphan, _ = self.adapter(transport).capture_current_state([9, 8, 7])
         self.assertIn(orphan.handle, transport.handles)
 
         retired = cache.reconcile_orphans()
@@ -493,6 +500,50 @@ class LlamaCppManagedAdapterTest(unittest.TestCase):
         self.assertNotIn(orphan.handle, transport.handles)
         self.assertEqual(len(transport.handles), 1)
         cache.backend.assert_physical_matches_registry()
+
+    def test_server_eviction_prunes_registry_and_policy(self):
+        transport = FakeManagedTransport()
+        cache = LlamaCppStateBraidPromptCache(
+            self.adapter(transport), max_sequences=4, max_bytes=10000
+        )
+        transport.capture_queue.append((2, 100))
+        self.assertTrue(cache.capture_and_admit([5, 6], role="stable"))
+        first_handle = next(iter(transport.handles))
+        transport.capture_queue.append((3, 100))
+        self.assertTrue(cache.capture_and_admit([7, 8, 9], role="active"))
+
+        # next capture reports the first handle reclaimed server-side
+        transport.capture_evicted = [first_handle]
+        transport.capture_queue.append((4, 100))
+        self.assertTrue(cache.capture_and_admit([1, 2, 3, 4], role="active"))
+
+        self.assertNotIn(first_handle, transport.handles)
+        self.assertEqual(cache.policy.n_sequences, 2)  # evicted entry removed
+        cache.backend.assert_physical_matches_registry()
+        self.assertNotIn(
+            first_handle, {s.handle for s in cache.backend.records.values()}
+        )
+
+    def test_flush_drops_is_idempotent_for_remotely_evicted_handle(self):
+        transport = FakeManagedTransport()
+        cache = LlamaCppStateBraidPromptCache(
+            self.adapter(transport), max_sequences=4, max_bytes=10000
+        )
+        transport.capture_queue.append((2, 100))
+        self.assertTrue(cache.capture_and_admit([5, 6], role="stable"))
+        key = next(iter(cache.backend.records))
+        handle = cache.backend.records[key].handle
+
+        # server reclaims the handle out-of-band (no eviction notice seen)
+        transport.handles.pop(handle)
+        cache.backend.remove(key)  # queues a physical drop for a dead handle
+        self.assertEqual(cache.backend.pending_drop_count, 1)
+
+        # drop fails with unknown-handle; the existing reconciliation path
+        # must treat the already-gone state as dropped (TTL-drop idempotence)
+        cache.backend.flush_drops()
+        self.assertEqual(cache.backend.pending_drop_count, 0)
+        self.assertEqual(len(cache.backend.records), 0)
 
 
 if __name__ == "__main__":

@@ -600,6 +600,37 @@ class CacheCoordinator:
                 self._restore_backend_and_policy(policy_before, affected, captured)
                 raise
 
+    def forget_remote(self, keys: Iterable[CacheKey]) -> list[CacheKey]:
+        """Drop entries whose physical state the backend already reclaimed.
+
+        Uses the backend's forget_remote when available so no physical drop
+        is queued for state that no longer exists."""
+        removed: list[CacheKey] = []
+        with self._lock:
+            for key in keys:
+                snapshot = self.backend.capture(key)
+                if snapshot is None:
+                    continue
+                policy_before = self.policy.capture_state()
+                try:
+                    forget = getattr(self.backend, "forget_remote", None)
+                    if forget is not None:
+                        forget(key)
+                    else:
+                        self.backend.remove(key)
+                    self.policy.commit_trim(
+                        TrimPlan(
+                            evictions=(Eviction(key=key, reason="remote-evicted"),)
+                        )
+                    )
+                    removed.append(key)
+                except Exception:
+                    self._restore_backend_and_policy(
+                        policy_before, [key], {key: snapshot}
+                    )
+                    raise
+        return removed
+
     def _restore_backend_and_policy(self, policy_before, affected, captured) -> None:
         self.policy.restore_state(policy_before)
         for key in affected:

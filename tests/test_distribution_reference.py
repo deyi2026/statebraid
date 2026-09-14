@@ -106,11 +106,11 @@ class DistributionReferenceTest(unittest.TestCase):
         )
         self.assertEqual(
             MANAGED_LLAMA_CPP_SOURCE_SHA,
-            "04329aacab48f91c79cd33490c2b4b33b29a7ef5",
+            "09a4891ddd3e546f29dffd38e1a00ab5a19085f6",
         )
         self.assertEqual(
             MANAGED_LLAMA_CPP_SOURCE_TREE_SHA,
-            "f064027f09970857a7ed53bf258706084a530fdf",
+            "4788b62631a8316472c9a272a04235bdb1de39e6",
         )
 
     def test_llama_cpp_managed_patch_contains_only_expected_paths(self):

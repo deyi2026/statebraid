@@ -5,6 +5,24 @@ release tags use the same version prefixed with `v`.
 
 ## Unreleased
 
+### Managed M1: consume server-side eviction notices (llama.cpp M1)
+
+- `capture_current_state` now parses the server's `evicted` list (always
+  present since llama.cpp 09a4891dd) and the facade applies
+  `apply_remote_evictions()`: registry and policy entries whose handles the
+  server reclaimed under its RAM budget are pruned with normal trim
+  accounting, feeding the same path as `reconcile_orphans()`.
+- `LlamaCppManagedStorageBackend.forget_remote()` removes a binding without
+  queuing a physical drop (the state no longer exists server-side);
+  `CacheCoordinator.forget_remote()` applies it transactionally.
+- `flush_drops` stays idempotent for already-evicted handles through the
+  existing unknown-handle reconciliation path (locked by test).
+- Frozen distribution artifact regenerated for llama.cpp 09a4891dd (RAM
+  budget cap, unused-handle eviction, `evicted` field). The qualification
+  manifest now carries an explicit note that formal evidence was recorded
+  against the earlier 04329aac source and requalification is pending; the
+  compact evidence file itself is unchanged.
+
 ### Managed-cache orphan recovery (llama.cpp M1)
 
 - `LlamaCppManagedStorageBackend.reconcile_orphaned_handles()` and the

@@ -30,7 +30,7 @@ from .llama_cpp import (
     llama_cpp_source_commit,
 )
 
-LLAMA_CPP_MANAGED_REFERENCE_SHA = "04329aacab48f91c79cd33490c2b4b33b29a7ef5"
+LLAMA_CPP_MANAGED_REFERENCE_SHA = "09a4891ddd3e546f29dffd38e1a00ab5a19085f6"
 
 _log = logging.getLogger("statebraid.llama_cpp_managed")
 
@@ -302,6 +302,11 @@ class LlamaCppManagedHTTPAdapter(LlamaCppHTTPAdapter):
             raise ValueError("llama.cpp managed capture returned invalid n_tokens")
         if not isinstance(nbytes, int) or isinstance(nbytes, bool) or nbytes <= 0:
             raise ValueError("llama.cpp managed capture returned invalid n_bytes")
+        evicted_raw = response.get("evicted", [])
+        if not isinstance(evicted_raw, list) or any(
+            not isinstance(item, str) or not item for item in evicted_raw
+        ):
+            raise ValueError("llama.cpp managed capture returned an invalid evicted list")
         state = LlamaCppManagedStateHandle(
             backend_identity=self.backend_identity,
             epoch=self.managed_epoch,
@@ -318,7 +323,7 @@ class LlamaCppManagedHTTPAdapter(LlamaCppHTTPAdapter):
             raise ValueError(
                 "llama.cpp managed capture token count does not match expected tokens"
             )
-        return state
+        return state, list(evicted_raw)
 
     def _require_state_binding(self, state: LlamaCppManagedStateHandle) -> None:
         if state.backend_identity != self.backend_identity:
@@ -458,7 +463,7 @@ class LlamaCppManagedStorageBackend:
         self.records[key] = payload
         self._pending_drops.pop(payload.handle, None)
 
-    def capture_current(self, key: CacheKey) -> LlamaCppManagedStateHandle:
+    def capture_current(self, key: CacheKey) -> tuple[LlamaCppManagedStateHandle, list[str]]:
         self._require_key(key)
         # Do not allocate additional remote state while a previous physical GC
         # is unresolved. This keeps a cleanup failure from silently expanding
@@ -466,7 +471,7 @@ class LlamaCppManagedStorageBackend:
         if self._pending_drops:
             self.flush_drops()
         try:
-            state = self.adapter.capture_current_state(key.tokens)
+            state, evicted = self.adapter.capture_current_state(key.tokens)
         except Exception:
             # The server may have applied the capture before the transport
             # failed. Retire handles we cannot account for, then surface the
@@ -490,7 +495,7 @@ class LlamaCppManagedStorageBackend:
         except Exception:
             self.adapter.drop_state(state)
             raise
-        return state
+        return state, evicted
 
     def reconcile_orphaned_handles(self) -> list[str]:
         """Drop remote handles this registry never accounted for.
@@ -545,6 +550,14 @@ class LlamaCppManagedStorageBackend:
     def discard_unbound(self, state: LlamaCppManagedStateHandle) -> None:
         self.adapter._require_state_binding(state)
         self._pending_drops[state.handle] = state
+
+    def forget_remote(self, key: CacheKey) -> LlamaCppManagedStateHandle | None:
+        """Forget a key whose handle the server already reclaimed.
+
+        Unlike remove(), this never queues a drop: the physical state is
+        gone, so a drop request would only produce an unknown-handle error."""
+        self._require_key(key)
+        return self.records.pop(key, None)
 
     def flush_drops(self) -> int:
         referenced = {state.handle for state in self.records.values()}
@@ -617,7 +630,25 @@ class LlamaCppStateBraidPromptCache:
         self, state_tokens: Sequence[int]
     ) -> LlamaCppManagedStateHandle:
         key = CacheKey.from_tokens(self.namespace, state_tokens)
-        return self.backend.capture_current(key)
+        state, evicted = self.backend.capture_current(key)
+        if evicted:
+            self.apply_remote_evictions(evicted)
+        return state
+
+    def apply_remote_evictions(self, handles: Sequence[str]) -> list[CacheKey]:
+        """Prune registry and policy entries the server reclaimed under its
+        RAM budget. Feeds the same accounting as reconcile_orphans()."""
+        evicted = set(handles)
+        doomed = [
+            key
+            for key, state in self.backend.records.items()
+            if state.handle in evicted
+        ]
+        if not doomed:
+            return []
+        removed = self.coordinator.forget_remote(doomed)
+        self.backend.flush_drops()
+        return removed
 
     def admit_captured(
         self,
