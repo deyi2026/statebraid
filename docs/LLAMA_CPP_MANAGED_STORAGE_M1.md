@@ -19,12 +19,16 @@ upstream source:
 - managed handle implementation: `29cad05988c9c48ee26ded83764ae70ae6edf665`;
 - exclusive-policy `clear` primitive: `6e7d910135a4ef586aa89b41e2ceaa2058b2defa`;
 - loopback-only control-plane hardening: `0f75058ccb5c4e0d7bd029d37678435eb0d2458c`;
-- exact-token capture binding: `04329aacab48f91c79cd33490c2b4b33b29a7ef5`;
-- final source tree: `f064027f09970857a7ed53bf258706084a530fdf`;
+- exact-token capture binding (historical, 04329aac era): `04329aacab48f91c79cd33490c2b4b33b29a7ef5`;
+- managed candidate source (current, D-round requalification): `09a4891ddd3e546f29dffd38e1a00ab5a19085f6`;
+- final source tree: `4788b62631a8316472c9a272a04235bdb1de39e6`;
 - packaged M1 patch SHA256:
-  `6ff061ba996ca5a2ae95dd930099507b31bf8f9aa933a48e628e12a5657bba76`;
-- StateBraid adapter requires `build_info` matching the final
-  `04329aacab48f91c79cd33490c2b4b33b29a7ef5` reference.
+  `36eb956e8d38743068f59d041a9b7487543a41726d11b8fef0ce1d4b09c1f9a9`;
+- StateBraid adapter requires `build_info` matching the current managed
+  reference `09a4891ddd3e546f29dffd38e1a00ab5a19085f6` (bumped from the
+  historical 04329aac binding when the candidate was requalified on 2026-10-22;
+  real-GGUF claims stay bound to the 04329aac era per recovery decision C --
+  see the kit manifest evidence_note / recovery_decision).
 
 StateBraid ships the M1 source delta as an experimental, version-bound artifact;
 this does not promote llama.cpp into the v0.1 runtime-qualified support matrix.
@@ -230,6 +234,16 @@ A later production qualification should therefore keep two distinct metrics:
    safety.
 
 ## Promotion gate
+
+Before any wider (non-loopback, multi-owner) qualification the following must
+be addressed explicitly (J-round review):
+
+- server-side cap on managed handle count and total captured bytes (M1
+  enforces budgets only in the Python client policy; a buggy or hostile
+  loopback client can grow process RAM without bound);
+- authentication/authorization for the `/statebraid/cache` control plane (the
+  epoch is an idempotency token, not authentication; any local process can
+  read it and act on the endpoint).
 
 Do not change `SUPPORTED_SCOPE_V0_1.md` or the stock llama.cpp descriptor because
 M1 exists. Promotion to a second reference runtime still requires a deliberate

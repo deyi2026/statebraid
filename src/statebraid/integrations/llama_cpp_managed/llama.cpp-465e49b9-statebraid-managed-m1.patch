@@ -1,8 +1,8 @@
 diff --git a/common/arg.cpp b/common/arg.cpp
-index 015196ca1..749464f63 100644
+index 015196ca1..f854eab14 100644
 --- a/common/arg.cpp
 +++ b/common/arg.cpp
-@@ -1722,6 +1722,13 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
+@@ -1722,6 +1722,20 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
              params.cache_ram_mib = value;
          }
      ).set_env("LLAMA_ARG_CACHE_RAM").set_examples({LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_CLI}));
@@ -13,23 +13,31 @@ index 015196ca1..749464f63 100644
 +            params.statebraid_managed_cache = true;
 +        }
 +    ).set_examples({LLAMA_EXAMPLE_SERVER}));
++    add_opt(common_arg(
++        {"--statebraid-managed-cache-ram"}, "N",
++        string_format("max total RAM for managed prompt-state handles in MiB (default: %d, -1 = no limit)", params.statebraid_managed_cache_ram_mib),
++        [](common_params & params, int value) {
++            params.statebraid_managed_cache_ram_mib = value;
++        }
++    ).set_env("LLAMA_ARG_STATEBRAID_MANAGED_CACHE_RAM").set_examples({LLAMA_EXAMPLE_SERVER}));
      add_opt(common_arg(
          {"-kvu", "--kv-unified"},
          {"-no-kvu", "--no-kv-unified"},
 diff --git a/common/common.h b/common/common.h
-index 63d0badd0..a8b96bc62 100644
+index 63d0badd0..c7cab3ec4 100644
 --- a/common/common.h
 +++ b/common/common.h
-@@ -630,6 +630,7 @@ struct common_params {
+@@ -630,6 +630,8 @@ struct common_params {
      int32_t kv_unified_per_slot = 0;     // max context per parallel slot; 0 = unset
      int32_t checkpoint_min_step = 8192;  // minimum spacing between context checkpoints
      int32_t cache_ram_mib       = 8192;  // -1 = no limit, 0 - disable, 1 = 1 MiB, etc.
 +    bool statebraid_managed_cache = false; // experimental external-policy RAM state handles
++    int32_t statebraid_managed_cache_ram_mib = 8192; // -1 = no limit, 1 = 1 MiB, etc.
  
      std::string hostname      = "127.0.0.1";
      std::string public_path   = "";                                                                         // NOLINT
 diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
-index f78cfb36d..afbe23af0 100644
+index f78cfb36d..02424e458 100644
 --- a/tools/server/server-context.cpp
 +++ b/tools/server/server-context.cpp
 @@ -23,6 +23,7 @@
@@ -58,20 +66,26 @@ index f78cfb36d..afbe23af0 100644
  static common_speculative_output_limits server_output_limits(const common_params & params) {
      if (params.embedding ||
              (params.pooling_type != LLAMA_POOLING_TYPE_UNSPECIFIED && params.pooling_type != LLAMA_POOLING_TYPE_NONE)) {
-@@ -914,6 +926,12 @@ private:
+@@ -914,6 +926,18 @@ private:
  
      std::unique_ptr<server_prompt_cache> prompt_cache;
  
 +    // Experimental StateBraid M1 physical store. StateBraid owns policy;
 +    // llama.cpp owns only opaque prompt/checkpoint/sequence-state payloads.
-+    std::map<std::string, server_prompt_cache_state> statebraid_managed_states;
++    // restored marks handles proven in use; never-restored handles are
++    // reclaimable under RAM-budget pressure (oldest first).
++    struct managed_entry {
++        server_prompt_cache_state state;
++        bool restored = false;
++    };
++    std::map<std::string, managed_entry> statebraid_managed_states;
 +    std::string statebraid_managed_epoch;
 +    uint64_t statebraid_managed_next_handle = 1;
 +
      server_metrics metrics;
  
      // queued prompt stats - llama_decode() is async, so the timing is only valid after a sync
-@@ -936,6 +954,12 @@ private:
+@@ -936,6 +960,12 @@ private:
      int64_t t_last_load_progress_ms = 0;
  
      void destroy() {
@@ -84,7 +98,7 @@ index f78cfb36d..afbe23af0 100644
          spec.reset();
          spec_init.reset();
  
-@@ -1011,6 +1035,14 @@ private:
+@@ -1011,6 +1041,14 @@ private:
          const bool is_resume = sleeping;
  
          params_base = params;
@@ -99,7 +113,7 @@ index f78cfb36d..afbe23af0 100644
          const auto output_limits = server_output_limits(params_base);
          params_base.n_outputs_max = output_limits.total;
          params_base.n_outputs_max_per_seq = output_limits.per_seq;
-@@ -1348,6 +1380,17 @@ private:
+@@ -1348,6 +1386,17 @@ private:
              batch.init(std::max(n_batch, params_base.n_parallel), n_embd);
          }
  
@@ -117,7 +131,7 @@ index f78cfb36d..afbe23af0 100644
          if (params_base.cache_ram_mib != 0) {
              if (params_base.cache_ram_mib < 0) {
                  SRV_TRC("prompt cache is enabled, size limit: %s\n", "no limit");
-@@ -2667,6 +2710,213 @@ private:
+@@ -2667,6 +2716,265 @@ private:
                      res->n_erased = n_erased;
                      queue_results.send(std::move(res));
                  } break;
@@ -150,11 +164,12 @@ index f78cfb36d..afbe23af0 100644
 +                        for (const auto & kv : statebraid_managed_states) {
 +                            handles.push_back({
 +                                {"handle", kv.first},
-+                                {"n_tokens", kv.second.prompt.tokens.size()},
-+                                {"n_bytes", kv.second.size()},
++                                {"n_tokens", kv.second.state.prompt.tokens.size()},
++                                {"n_bytes", kv.second.state.size()},
++                                {"restored", kv.second.restored},
 +                            });
-+                            total_bytes += kv.second.size();
-+                            total_tokens += kv.second.prompt.tokens.size();
++                            total_bytes += kv.second.state.size();
++                            total_tokens += kv.second.state.prompt.tokens.size();
 +                        }
 +                        send_json({
 +                            {"enabled", true},
@@ -162,6 +177,7 @@ index f78cfb36d..afbe23af0 100644
 +                            {"n_handles", statebraid_managed_states.size()},
 +                            {"n_tokens", total_tokens},
 +                            {"n_bytes", total_bytes},
++                            {"ram_limit_mib", params_base.statebraid_managed_cache_ram_mib},
 +                            {"handles", std::move(handles)},
 +                        });
 +                        break;
@@ -177,8 +193,8 @@ index f78cfb36d..afbe23af0 100644
 +                            send_error(task, "Unknown StateBraid managed-cache handle", ERROR_TYPE_INVALID_REQUEST);
 +                            break;
 +                        }
-+                        const size_t n_tokens = it->second.prompt.tokens.size();
-+                        const size_t n_bytes = it->second.size();
++                        const size_t n_tokens = it->second.state.prompt.tokens.size();
++                        const size_t n_bytes = it->second.state.size();
 +                        statebraid_managed_states.erase(it);
 +                        send_json({
 +                            {"success", true},
@@ -242,6 +258,54 @@ index f78cfb36d..afbe23af0 100644
 +                        const size_t state_size_tgt = llama_state_seq_get_size_ext(ctx_tgt, slot->id, LLAMA_STATE_SEQ_FLAGS_NONE);
 +                        const size_t state_size_dft = ctx_dft ? llama_state_seq_get_size_ext(ctx_dft, slot->id, LLAMA_STATE_SEQ_FLAGS_NONE) : 0;
 +
++                        // reject before allocating so the budget bounds total managed RAM
++                        const int32_t ram_limit_mib = params_base.statebraid_managed_cache_ram_mib;
++                        std::vector<std::string> evicted_handles;
++                        if (ram_limit_mib >= 0) {
++                            const size_t ram_limit = (size_t) ram_limit_mib * 1024 * 1024;
++                            size_t managed_bytes = 0;
++                            for (const auto & kv : statebraid_managed_states) {
++                                managed_bytes += kv.second.state.size();
++                            }
++                            const size_t need = state_size_tgt + state_size_dft;
++                            if (managed_bytes + need > ram_limit) {
++                                // plan first, delete last: a refusal must have no side effects
++                                const size_t deficit = managed_bytes + need - ram_limit;
++                                size_t reclaimable = 0;
++                                size_t n_unused = 0;
++                                for (const auto & kv : statebraid_managed_states) {
++                                    if (kv.second.restored) {
++                                        continue;
++                                    }
++                                    n_unused++;
++                                    if (reclaimable < deficit) {
++                                        reclaimable += kv.second.state.size();
++                                    }
++                                }
++                                if (reclaimable < deficit) {
++                                    send_error(task, string_format(
++                                        "managed cache RAM budget exceeded even after reclaiming %zu unused handles (%.1f MiB): used %.1f MiB, capture needs %.1f MiB, limit %d MiB",
++                                        n_unused, reclaimable / 1024.0 / 1024.0,
++                                        managed_bytes / 1024.0 / 1024.0,
++                                        need / 1024.0 / 1024.0,
++                                        (int) ram_limit_mib), ERROR_TYPE_INVALID_REQUEST);
++                                    break;
++                                }
++                                // erase exactly enough oldest never-restored handles
++                                size_t reclaimed = 0;
++                                for (auto it = statebraid_managed_states.begin(); it != statebraid_managed_states.end() && reclaimed < deficit; ) {
++                                    if (it->second.restored) {
++                                        ++it;
++                                        continue;
++                                    }
++                                    reclaimed += it->second.state.size();
++                                    SRV_INF("statebraid: evicting unused managed handle %s under RAM budget\n", it->first.c_str());
++                                    evicted_handles.push_back(it->first);
++                                    it = statebraid_managed_states.erase(it);
++                                }
++                            }
++                        }
++
 +                        server_prompt_cache_state state {
 +                            /*.prompt =*/ slot->prompt.clone(),
 +                            /*.data   =*/ {
@@ -268,7 +332,7 @@ index f78cfb36d..afbe23af0 100644
 +                        const std::string handle = string_format("sbm1-%016" PRIx64, statebraid_managed_next_handle++);
 +                        const size_t n_tokens = state.prompt.tokens.size();
 +                        const size_t n_bytes = state.size();
-+                        statebraid_managed_states.emplace(handle, std::move(state));
++                        statebraid_managed_states.emplace(handle, managed_entry{std::move(state), false});
 +                        send_json({
 +                            {"success", true},
 +                            {"epoch", statebraid_managed_epoch},
@@ -276,6 +340,7 @@ index f78cfb36d..afbe23af0 100644
 +                            {"id_slot", id_slot},
 +                            {"n_tokens", n_tokens},
 +                            {"n_bytes", n_bytes},
++                            {"evicted", json(std::move(evicted_handles))},
 +                        });
 +                        break;
 +                    }
@@ -286,7 +351,7 @@ index f78cfb36d..afbe23af0 100644
 +                            send_error(task, "Unknown StateBraid managed-cache handle", ERROR_TYPE_INVALID_REQUEST);
 +                            break;
 +                        }
-+                        const auto & state = it->second;
++                        const auto & state = it->second.state;
 +                        if (state.prompt.tokens.size() > (size_t) slot->n_ctx) {
 +                            send_error(task, "Managed prompt state does not fit in the slot context", ERROR_TYPE_INVALID_REQUEST);
 +                            break;
@@ -315,6 +380,7 @@ index f78cfb36d..afbe23af0 100644
 +                            }
 +                        }
 +                        slot->prompt = state.prompt.clone();
++                        it->second.restored = true;
 +                        send_json({
 +                            {"success", true},
 +                            {"epoch", statebraid_managed_epoch},
@@ -331,7 +397,7 @@ index f78cfb36d..afbe23af0 100644
              case SERVER_TASK_TYPE_GET_LORA:
                  {
                      // TODO @ngxson : make lora_adapters a dedicated member of server_context
-@@ -4785,6 +5035,115 @@ void server_routes::init_routes() {
+@@ -4785,6 +5093,115 @@ void server_routes::init_routes() {
          return res;
      };
  
@@ -513,10 +579,10 @@ index 22378b38c..5f2252ef3 100644
      // proxies that resolve the owning child, see server-stream.h
 diff --git a/tools/server/tests/unit/test_statebraid_managed_cache.py b/tools/server/tests/unit/test_statebraid_managed_cache.py
 new file mode 100644
-index 000000000..2b72e2ad4
+index 000000000..12f4531da
 --- /dev/null
 +++ b/tools/server/tests/unit/test_statebraid_managed_cache.py
-@@ -0,0 +1,242 @@
+@@ -0,0 +1,402 @@
 +import pytest
 +from utils import *
 +
@@ -752,31 +818,194 @@ index 000000000..2b72e2ad4
 +def test_statebraid_managed_cache_rejects_native_ram_cache_split_brain():
 +    server.cache_ram = 8
 +    with pytest.raises(RuntimeError):
-+        server.start(timeout_seconds=10)
++        server.start(timeout_seconds=30)
 +
 +
 +def test_statebraid_managed_cache_rejects_non_loopback_bind():
 +    server.server_host = "0.0.0.0"
 +    with pytest.raises(RuntimeError):
-+        server.start(timeout_seconds=10)
++        server.start(timeout_seconds=30)
++
++
++def _budget_server():
++    budget_server = ServerPreset.tinyllama2()
++    budget_server.temperature = 0.0
++    budget_server.n_slots = 1
++    budget_server.cache_ram = 0
++    budget_server.statebraid_managed_cache = True
++    budget_server.statebraid_managed_cache_ram = 1  # 1 MiB
++    return budget_server
++
++
++def _prime_slot(server, epoch):
++    prompt = "statebraid budget probe " + "alpha beta gamma delta " * 16
++    toks = server.make_request("POST", "/tokenize", data={
++        "content": prompt,
++        "add_special_tokens": False,
++    }).body["tokens"]
++    done = server.make_request("POST", "/completion", data={
++        "prompt": toks,
++        "id_slot": 0,
++        "cache_prompt": True,
++        "n_predict": 0,
++    })
++    assert done.status_code == 200
++    return toks
++
++
++def _capture(server, epoch, toks):
++    return server.make_request("POST", "/statebraid/cache", data={
++        "action": "capture",
++        "epoch": epoch,
++        "id_slot": 0,
++        "expected_tokens": toks,
++    })
++
++
++def _restore(server, epoch, handle):
++    return server.make_request("POST", "/statebraid/cache", data={
++        "action": "restore",
++        "epoch": epoch,
++        "id_slot": 0,
++        "handle": handle,
++    })
++
++
++def _list_handles(server):
++    res = server.make_request("GET", "/statebraid/cache")
++    assert res.status_code == 200
++    return res.body
++
++
++def test_statebraid_managed_cache_ram_budget_rejects_when_all_handles_are_in_use():
++    budget_server = _budget_server()
++    try:
++        budget_server.start()
++
++        epoch = _list_handles(budget_server)["epoch"]
++        toks = _prime_slot(budget_server, epoch)
++
++        # in-use (restored) handles are protected: captures must accumulate
++        # up to the budget, then be rejected with no side effects
++        first_handle = None
++        rejected = None
++        for _ in range(20):
++            res = _capture(budget_server, epoch, toks)
++            if res.status_code != 200:
++                rejected = res
++                break
++            assert res.body["evicted"] == []
++            if first_handle is None:
++                first_handle = res.body["handle"]
++            restored = _restore(budget_server, epoch, res.body["handle"])
++            assert restored.status_code == 200
++        assert rejected is not None
++        assert rejected.status_code == 400
++        assert "budget" in rejected.body["error"]["message"]
++
++        after = _list_handles(budget_server)
++        assert after["n_bytes"] <= 1 * 1024 * 1024
++
++        # refusal must not have destroyed the protected handles
++        again = _restore(budget_server, epoch, first_handle)
++        assert again.status_code == 200
++        rows = {row["handle"]: row for row in after["handles"]}
++        assert rows[first_handle]["restored"] is True
++    finally:
++        budget_server.stop()
++
++
++def test_statebraid_managed_cache_evicts_oldest_unused_handle_under_pressure():
++    budget_server = _budget_server()
++    try:
++        budget_server.start()
++
++        epoch = _list_handles(budget_server)["epoch"]
++        toks = _prime_slot(budget_server, epoch)
++
++        first = _capture(budget_server, epoch, toks)
++        assert first.status_code == 200
++        orphan = first.body["handle"]
++
++        # keep capturing without restoring until pressure evicts the oldest
++        evicted_in = None
++        for _ in range(30):
++            res = _capture(budget_server, epoch, toks)
++            if res.status_code != 200:
++                assert "budget" in res.body["error"]["message"]
++                break
++            if res.body["evicted"]:
++                evicted_in = res
++                break
++        assert evicted_in is not None, "expected an eviction under the 1 MiB budget"
++        # equal-size captures: the first eviction's deficit is one handle,
++        # so exactly the oldest unused handle is reclaimed, nothing younger
++        assert evicted_in.body["evicted"] == [orphan]
++
++        listed = _list_handles(budget_server)
++        live = {row["handle"] for row in listed["handles"]}
++        assert orphan not in live
++        assert evicted_in.body["handle"] in live  # new capture survived
++
++        # an evicted handle is gone for good
++        gone = _restore(budget_server, epoch, orphan)
++        assert gone.status_code == 400
++        assert "Unknown" in gone.body["error"]["message"]
++    finally:
++        budget_server.stop()
++
++
++def test_statebraid_managed_cache_list_reports_restored_and_creation_order():
++    ordered = ServerPreset.tinyllama2()
++    ordered.temperature = 0.0
++    ordered.n_slots = 1
++    ordered.cache_ram = 0
++    ordered.statebraid_managed_cache = True
++    try:
++        ordered.start()
++
++        body = _list_handles(ordered)
++        epoch = body["epoch"]
++        toks = _prime_slot(ordered, epoch)
++
++        first = _capture(ordered, epoch, toks)
++        second = _capture(ordered, epoch, toks)
++        assert first.status_code == 200 and second.status_code == 200
++
++        rows = _list_handles(ordered)["handles"]
++        assert [row["handle"] for row in rows] == [
++            first.body["handle"],
++            second.body["handle"],
++        ]  # map order is creation order, oldest first
++        assert all(row["restored"] is False for row in rows)
++
++        assert _restore(ordered, epoch, second.body["handle"]).status_code == 200
++        rows = {row["handle"]: row for row in _list_handles(ordered)["handles"]}
++        assert rows[first.body["handle"]]["restored"] is False
++        assert rows[second.body["handle"]]["restored"] is True
++    finally:
++        ordered.stop()
 diff --git a/tools/server/tests/utils.py b/tools/server/tests/utils.py
-index 826aef2d5..b9055a9f8 100644
+index 826aef2d5..7a96a9cb9 100644
 --- a/tools/server/tests/utils.py
 +++ b/tools/server/tests/utils.py
-@@ -113,6 +113,7 @@ class ServerProcess:
+@@ -113,6 +113,8 @@ class ServerProcess:
      media_path: str | None = None
      sleep_idle_seconds: int | None = None
      cache_ram: int | None = None
 +    statebraid_managed_cache: bool = False
++    statebraid_managed_cache_ram: int | None = None
      no_cache_idle_slots: bool = False
      log_path: str | None = None
      ui_mcp_proxy: bool = False
-@@ -278,6 +279,8 @@ class ServerProcess:
+@@ -278,6 +280,10 @@ class ServerProcess:
              server_args.extend(["--sleep-idle-seconds", self.sleep_idle_seconds])
          if self.cache_ram is not None:
              server_args.extend(["--cache-ram", self.cache_ram])
 +        if self.statebraid_managed_cache:
 +            server_args.append("--statebraid-managed-cache")
++        if self.statebraid_managed_cache_ram is not None:
++            server_args.extend(["--statebraid-managed-cache-ram", self.statebraid_managed_cache_ram])
          if self.no_cache_idle_slots:
              server_args.append("--no-cache-idle-slots")
          if self.ui_mcp_proxy:
