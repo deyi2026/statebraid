@@ -55,7 +55,7 @@ def prepare(base_url: str, state_file: Path) -> dict[str, object]:
             "seed": 1234,
         },
     )
-    state = adapter.capture_current_state(tokens)
+    state, _evicted = adapter.capture_current_state(tokens)  # adapter API returns (state, evicted)
     payload = {
         "epoch": adapter.managed_epoch,
         "handle": state.handle,
