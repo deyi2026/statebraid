@@ -28,6 +28,7 @@ class FakeManagedTransport:
         self.n_cleared = 0
         self.drop_failures_before_apply = 0
         self.drop_response_loss_after_apply = False
+        self.capture_response_loss_after_apply = False
 
     def get_json(self, path):
         if path == "/props":
@@ -105,6 +106,8 @@ class FakeManagedTransport:
             self.next_handle += 1
             self.handles[handle] = (n_tokens, n_bytes)
             self.n_cleared = n_tokens
+            if self.capture_response_loss_after_apply:
+                raise OSError("injected response loss after capture")
             return {
                 "success": True,
                 "epoch": self.epoch,
@@ -447,6 +450,49 @@ class LlamaCppManagedAdapterTest(unittest.TestCase):
         observation = cache.generation_safe_exact(cache.namespace, [1, 2, 3])
         self.assertEqual(observation.matched_tokens, 2)
         self.assertEqual(observation.remaining, (3,))
+
+    def test_lost_capture_response_retires_orphan_automatically(self):
+        transport = FakeManagedTransport()
+        cache = LlamaCppStateBraidPromptCache(
+            self.adapter(transport), max_sequences=2, max_bytes=1000
+        )
+        transport.capture_queue.append((3, 100))
+        transport.capture_response_loss_after_apply = True
+        with self.assertRaisesRegex(OSError, "response loss after capture"):
+            cache.capture_and_admit([1, 2, 3], role="active")
+        # The handle was applied server-side but never accounted for;
+        # the failure path must have retired it already.
+        self.assertEqual(transport.handles, {})
+        cache.backend.assert_physical_matches_registry()
+
+    def test_reconcile_orphans_is_noop_when_clean(self):
+        transport = FakeManagedTransport()
+        cache = LlamaCppStateBraidPromptCache(
+            self.adapter(transport), max_sequences=2, max_bytes=1000
+        )
+        transport.capture_queue.append((2, 100))
+        self.assertTrue(cache.capture_and_admit([5, 6], role="stable"))
+        self.assertEqual(cache.reconcile_orphans(), [])
+        self.assertEqual(len(transport.handles), 1)
+
+    def test_reconcile_orphans_drops_unknown_handles_and_spares_known(self):
+        transport = FakeManagedTransport()
+        cache = LlamaCppStateBraidPromptCache(
+            self.adapter(transport), max_sequences=4, max_bytes=10000
+        )
+        transport.capture_queue.append((2, 100))
+        self.assertTrue(cache.capture_and_admit([5, 6], role="stable"))
+
+        # Simulate an out-of-band capture this registry never saw.
+        transport.capture_queue.append((3, 100))
+        orphan = self.adapter(transport).capture_current_state([9, 8, 7])
+        self.assertIn(orphan.handle, transport.handles)
+
+        retired = cache.reconcile_orphans()
+        self.assertEqual(retired, [orphan.handle])
+        self.assertNotIn(orphan.handle, transport.handles)
+        self.assertEqual(len(transport.handles), 1)
+        cache.backend.assert_physical_matches_registry()
 
 
 if __name__ == "__main__":

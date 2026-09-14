@@ -12,7 +12,6 @@ import threading
 from dataclasses import dataclass, field as dataclass_field, replace
 from typing import Any, Hashable, Iterable, Protocol, Sequence
 
-PIN_ROLES: frozenset[str] = frozenset()
 ROLE_RANKS = {
     "assistant": 10,
     "user": 30,
@@ -117,7 +116,7 @@ class WorkingSetPolicy:
         max_sequences: int = 8,
         max_bytes: int = 1 << 63,
         *,
-        pin_roles: frozenset[str] = PIN_ROLES,
+        pin_roles: frozenset[str] = frozenset(),
         transient_reserve: int | None = None,
     ) -> None:
         self.max_sequences = max(0, int(max_sequences))

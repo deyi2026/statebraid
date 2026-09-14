@@ -7,6 +7,7 @@ import json
 from collections.abc import Sequence
 
 from statebraid.adapters.llama_cpp import LLAMA_CPP_BACKEND_DESCRIPTOR
+from statebraid.adapters.llama_cpp_managed import LLAMA_CPP_MANAGED_BACKEND_DESCRIPTOR
 from statebraid.adapters.mlx import MLX_BACKEND_DESCRIPTOR
 from statebraid.backend import BACKEND_CONTRACT_VERSION, BACKEND_OWNS, STATEBRAID_OWNS
 from statebraid.compat.llama_cpp import probe_llama_cpp_server
@@ -52,6 +53,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "known_adapters": [
                 MLX_BACKEND_DESCRIPTOR.to_dict(),
                 LLAMA_CPP_BACKEND_DESCRIPTOR.to_dict(),
+                LLAMA_CPP_MANAGED_BACKEND_DESCRIPTOR.to_dict(),
             ],
             "qualification_note": (
                 "capability declaration does not widen the separately versioned support scope"

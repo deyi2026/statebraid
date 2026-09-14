@@ -5,7 +5,27 @@ release tags use the same version prefixed with `v`.
 
 ## Unreleased
 
-No unreleased user-facing changes are recorded yet.
+### Managed-cache orphan recovery (llama.cpp M1)
+
+- `LlamaCppManagedStorageBackend.reconcile_orphaned_handles()` and the
+  facade-level `LlamaCppStateBraidPromptCache.reconcile_orphans()` retire
+  remote handles this registry never accounted for, covering captures whose
+  response was lost after server-side success. Failed captures reconcile
+  automatically before the original error surfaces.
+- The managed adapter reports retirements and reconciliation failures via
+  the `statebraid.llama_cpp_managed` logger instead of staying silent.
+
+### Removed
+
+- `statebraid.cache.PIN_ROLES` (empty placeholder constant). The
+  `WorkingSetPolicy(pin_roles=...)` parameter is unchanged.
+- `bench/phase16_2_lfl_ab.py` and its test: unrunnable residue importing
+  the out-of-tree `llm_loop` package.
+
+### Fixed
+
+- `statebraid-doctor contract` now lists the llama.cpp managed M1 adapter
+  alongside mlx-lm and llama.cpp.
 
 ## 0.1.0 - 2026-09-07
 
