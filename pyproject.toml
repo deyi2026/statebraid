@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "statebraid"
-version = "0.1.0"
+version = "0.2.0"
 description = "Agent-aware compute-continuity runtime for long-running local agents"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -34,6 +34,7 @@ statebraid-doctor = "statebraid.doctor:main"
 statebraid-reference = "statebraid.reference:main"
 
 [tool.setuptools.package-data]
+"statebraid" = ["py.typed"]
 "statebraid.integrations.mlx" = ["*.patch"]
 "statebraid.integrations.llama_cpp_managed" = ["*.patch"]
 

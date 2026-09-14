@@ -3,7 +3,21 @@
 All notable StateBraid changes are recorded here. Version strings follow PEP 440;
 release tags use the same version prefixed with `v`.
 
-## Unreleased
+## 0.2.0 - 2026-09-14
+
+### Removed (breaking)
+
+- The `statebraid.integration` package (Harness Integration Contract v0.1:
+  `HarnessComputeRequest`/`HarnessComputeFacts`/`check_backend_compatibility`,
+  `integration_contract_metadata`, and the trust-ownership derivation helpers)
+  shipped ahead of any harness adopter and is retired. The spec, its doctor
+  subcommand, and its audit-evidence document remain in git history at tag
+  `v0.1.0`. The support-scope payload drops `harness_integration_contract_version`
+  (SUPPORT_SCOPE_VERSION 0.1 -> 0.2).
+
+### Added
+
+- `py.typed` marker: the package now declares inline types to type checkers.
 
 ### Managed M1: consume server-side eviction notices (llama.cpp M1)
 
