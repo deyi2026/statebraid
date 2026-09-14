@@ -18,7 +18,7 @@ class DoctorBackendContractTest(unittest.TestCase):
         self.assertIn(
             "exact namespace + token cache identity", report["statebraid_owns"]
         )
-        self.assertEqual(len(report["known_adapters"]), 2)
+        self.assertEqual(len(report["known_adapters"]), 3)
         adapters = {item["name"]: item for item in report["known_adapters"]}
         mlx = adapters["mlx-lm"]
         self.assertEqual(mlx["integration_level"], "generation-safe-managed")
@@ -33,6 +33,9 @@ class DoctorBackendContractTest(unittest.TestCase):
             ["generation_safety", "hit_attribution", "prefix_lookup"],
         )
         self.assertNotIn("namespace_isolation", llama["capabilities"])
+        managed = adapters["llama.cpp-managed-m1"]
+        self.assertEqual(managed["integration_level"], "partial")
+        self.assertFalse(managed["qualification_profile"]["runtime_qualified"])
         self.assertEqual(
             llama["observation_profile"]["mode"], "execution_coupled"
         )

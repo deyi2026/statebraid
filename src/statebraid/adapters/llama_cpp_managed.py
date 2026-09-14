@@ -7,6 +7,7 @@ StateBraid policy ownership distinct from llama.cpp execution/storage mechanics.
 from __future__ import annotations
 
 import ipaddress
+import logging
 from collections.abc import Hashable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -30,6 +31,8 @@ from .llama_cpp import (
 )
 
 LLAMA_CPP_MANAGED_REFERENCE_SHA = "04329aacab48f91c79cd33490c2b4b33b29a7ef5"
+
+_log = logging.getLogger("statebraid.llama_cpp_managed")
 
 LLAMA_CPP_MANAGED_STORAGE_DESCRIPTOR = BackendDescriptor(
     name="llama.cpp-managed-storage-m1",
@@ -465,13 +468,71 @@ class LlamaCppManagedStorageBackend:
         # the backend beyond the logical working-set budget.
         if self._pending_drops:
             self.flush_drops()
-        state = self.adapter.capture_current_state(key.tokens)
+        try:
+            state = self.adapter.capture_current_state(key.tokens)
+        except Exception:
+            # The server may have applied the capture before the transport
+            # failed. Retire handles we cannot account for, then surface the
+            # original error; reconciliation is best-effort.
+            try:
+                orphans = self.reconcile_orphaned_handles()
+                if orphans:
+                    _log.warning(
+                        "retired %d orphaned handle(s) after failed capture: %s",
+                        len(orphans),
+                        ", ".join(orphans),
+                    )
+            except Exception as reconcile_error:
+                _log.warning(
+                    "orphan reconciliation after failed capture did not complete: %s",
+                    reconcile_error,
+                )
+            raise
         try:
             self._require_state(key, state)
         except Exception:
             self.adapter.drop_state(state)
             raise
         return state
+
+    def reconcile_orphaned_handles(self) -> list[str]:
+        """Drop remote handles this registry never accounted for.
+
+        Covers captures whose response was lost after server-side success.
+        Single-owner M1 assumption: this backend is the only client of the
+        managed store within the current epoch."""
+        store = self.adapter.managed_store()
+        orphans: list[LlamaCppManagedStateHandle] = []
+        known = {state.handle for state in self.records.values()}
+        known.update(self._pending_drops)
+        for item in store["handles"]:
+            if not isinstance(item, Mapping):
+                continue
+            handle = item.get("handle")
+            n_tokens = item.get("n_tokens")
+            nbytes = item.get("n_bytes")
+            if (
+                handle in known
+                or not isinstance(handle, str)
+                or not isinstance(n_tokens, int)
+                or isinstance(n_tokens, bool)
+                or not isinstance(nbytes, int)
+                or isinstance(nbytes, bool)
+            ):
+                continue
+            orphans.append(
+                LlamaCppManagedStateHandle(
+                    backend_identity=self.adapter.backend_identity,
+                    epoch=self.adapter.managed_epoch,
+                    handle=handle,
+                    id_slot=self.adapter.id_slot,
+                    n_tokens=n_tokens,
+                    nbytes=nbytes,
+                )
+            )
+        for state in orphans:
+            self.adapter.drop_state(state)
+        return [state.handle for state in orphans]
 
     def clear_live_slot(self) -> int:
         return self.adapter.clear_live_slot()
@@ -632,6 +693,13 @@ class LlamaCppStateBraidPromptCache:
             raise
         finally:
             self.backend.flush_drops()
+
+    def reconcile_orphans(self) -> list[str]:
+        """Retire remote handles this controller never accounted for.
+
+        Call after a suspected capture loss, or after reconnecting to a
+        long-lived server when handles were adopted out of process."""
+        return self.backend.reconcile_orphaned_handles()
 
     def prepare(
         self, prompt_tokens: Sequence[int]
