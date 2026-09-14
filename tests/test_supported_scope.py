@@ -8,7 +8,6 @@ from pathlib import Path
 from statebraid import (
     BACKEND_CONTRACT_VERSION,
     COMPUTE_CONTRACT_VERSION,
-    HARNESS_INTEGRATION_CONTRACT_VERSION,
     SUPPORT_SCOPE_VERSION,
 )
 from statebraid.doctor import main as doctor_main
@@ -35,12 +34,10 @@ class SupportedScopeContractTest(unittest.TestCase):
     def test_scope_version_is_additive_to_frozen_compute_contract(self) -> None:
         self.assertEqual(COMPUTE_CONTRACT_VERSION, "0.1")
         self.assertEqual(BACKEND_CONTRACT_VERSION, "0.2")
-        self.assertEqual(HARNESS_INTEGRATION_CONTRACT_VERSION, "0.1")
-        self.assertEqual(SUPPORT_SCOPE_VERSION, "0.1")
+        self.assertEqual(SUPPORT_SCOPE_VERSION, "0.2")
         self.assertEqual(SUPPORT_SCOPE_VERSION_DIRECT, SUPPORT_SCOPE_VERSION)
         core = support_scope()["core_contract"]
         self.assertEqual(core["backend_contract_version"], "0.2")
-        self.assertEqual(core["harness_integration_contract_version"], "0.1")
         self.assertIn("model execution", core["backend_owns"])
         self.assertIn(
             "exact namespace + token cache identity", core["statebraid_owns"]

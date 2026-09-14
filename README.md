@@ -85,7 +85,7 @@ whether to continue or answer.
 
 StateBraid and an agent harness should integrate through a narrow serving/API
 boundary rather than share a second semantic control plane.
- The normative cross-layer boundary is now machine-readable as
+ The normative cross-layer boundary was documented as
 **Harness ↔ StateBraid Integration Contract v0.1**: the Harness/gateway chooses the
 backend and supplies only trusted ownership/trust-domain, exact token identity and
 mechanical limits; StateBraid returns factual compute-continuity results only.
@@ -93,9 +93,10 @@ mechanical limits; StateBraid returns factual compute-continuity results only.
 StateBraid deliberately does **not** ship a generic chat/inference gateway. A Phase
 9 `/v1/chat/completions` service experiment was reviewed but kept out of the product
 surface because backend routing/proxy ownership would create pressure toward auth,
-retry/fallback, model selection, load balancing and serving-platform scope. The two
-mechanical pieces worth keeping -- trusted ownership → trust domain and compatibility
-checking for an already-selected backend -- live under `statebraid.integration`.
+retry/fallback, model selection, load balancing and serving-platform scope. The
+contract layer (`statebraid.integration`) shipped ahead of any harness adopter and
+was **retired in 0.2.0**; the spec and its evidence remain in git history
+(`docs/HARNESS_INTEGRATION_CONTRACT_V0_1.md` at tag `v0.1.0`).
 
 ### Backend Contract v0.2
 
@@ -116,7 +117,6 @@ Inspect the machine-readable contract with:
 
 ```bash
 statebraid-doctor contract --json
-statebraid-doctor integration --json
 ```
 
 See [`docs/BACKEND_CONTRACT_V0_2.md`](https://github.com/deyi2026/statebraid/blob/main/docs/BACKEND_CONTRACT_V0_2.md).
