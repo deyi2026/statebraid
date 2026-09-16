@@ -8,6 +8,9 @@ With the exact managed llama-server already running on loopback and with an
 empty managed store, run the mechanical and Agent gates serially:
 
 ```text
+PYTHONPATH=src python qualification/determinism_audit.py \
+  --base-url http://127.0.0.1:8901
+
 PYTHONPATH=src python qualification/llama_cpp_managed_m1/formal_matrix.py \
   --base-url http://127.0.0.1:8901
 

@@ -7,12 +7,19 @@ ship model weights and does not widen the v0.1 supported-runtime matrix.
 With an exact single-slot llama-server already running on loopback:
 
 ```text
+PYTHONPATH=src python qualification/determinism_audit.py \
+  --base-url http://127.0.0.1:8901
+
 PYTHONPATH=src python qualification/llama_cpp_real_gguf/mechanical_canary.py \
   --base-url http://127.0.0.1:8901
 
 PYTHONPATH=src python qualification/llama_cpp_real_gguf/adapter_boundaries.py \
   --base-url http://127.0.0.1:8901
 ```
+
+The determinism audit runs first: identical greedy requests repeated N times
+must be bit-identical on the cold path and on the exact cache-replay path,
+otherwise no reuse measurement that follows is meaningful.
 
 The mechanical canary checks cold/exact generation safety, prefix extension,
 divergence, A-B-A stale-suffix safety, multi-turn extension and slot erase. The
