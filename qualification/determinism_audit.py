@@ -78,7 +78,11 @@ def digest(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def run(base_url: str, repeats: int, n_predict: int, seed: int) -> dict[str, Any]:
+def run(
+    base_url: str, repeats: int, n_predict: int, seed: int, device_label: str = "unlabeled"
+) -> dict[str, Any]:
+    props = request_json(base_url, "/props")
+    build_info = str(props.get("build_info", ""))
     prompt = (
         "StateBraid determinism audit fixture. This text is intentionally stable and mechanical. "
         "The backend must return bit-identical completions for identical greedy requests. "
@@ -107,6 +111,8 @@ def run(base_url: str, repeats: int, n_predict: int, seed: int) -> dict[str, Any
     }
     return {
         "status": "PASS" if all(checks.values()) else "FAIL",
+        "device_label": device_label,
+        "build_info": build_info,
         "repeats": repeats,
         "n_predict": n_predict,
         "seed": seed,
@@ -126,8 +132,15 @@ def main() -> None:
     parser.add_argument("--repeats", type=int, default=4)
     parser.add_argument("--n-predict", type=int, default=24)
     parser.add_argument("--seed", type=int, default=1234)
+    parser.add_argument(
+        "--device-label",
+        default="unlabeled",
+        help="operator-declared execution device (e.g. metal, cpu); recorded in evidence",
+    )
     args = parser.parse_args()
-    result = run(args.base_url, args.repeats, args.n_predict, args.seed)
+    result = run(
+        args.base_url, args.repeats, args.n_predict, args.seed, device_label=args.device_label
+    )
     print(json.dumps(result, indent=2, ensure_ascii=False))
     raise SystemExit(0 if result["status"] == "PASS" else 2)
 
