@@ -1,0 +1,33 @@
+{
+  "schema": "statebraid-llama-hybrid-ssm-qualification-v1",
+  "status": "PASS",
+  "runtime_qualified": false,
+  "recorded_at": "2026-09-17",
+  "notes": "Candidate canary-grade evidence from a stock distribution llama.cpp build (0.3.0, build 10621, commit c1d0e7a00) on Apple silicon (Metal). It demonstrates the checks, not a supported runtime; rerun against the exact pinned build before treating any fact as qualification.",
+  "facts": {
+    "determinism_audit": {
+      "status": "PASS",
+      "repeats": 4,
+      "cold_repeat_identical": true,
+      "cached_repeat_identical": true,
+      "replay_matches_cold": true,
+      "generation_nonempty": true
+    },
+    "mechanical_canary": {
+      "status": "PASS",
+      "checks_passed": 12,
+      "cold_A_zero": true,
+      "exact_A_safe_replay": true,
+      "exact_A_replay_content_identical": true,
+      "A_after_B_content_identical": true,
+      "R2_not_over_lcp": true,
+      "R3_not_over_lcp": true,
+      "erase_resets": true
+    },
+    "hybrid_ssm_reuse_boundary": "On divergence after a 1065-token reused prefix, the slot reused 553 tokens where the true common prefix was 1059; llama.cpp truncates reuse at the last recurrent-state snapshot instead of the true token LCP. Conservative and mechanically safe, but LCP-based accounting must not assume token-prefix reuse on hybrid backends."
+  },
+  "raw_evidence_sha256": {
+    "determinism_audit.json": "f6486bc912ef0cd0cacf90f26579e90ae575db489893d08e6ecb0c6c0d6bce2a",
+    "mechanical_canary.json": "f276c5fb1dc4458c3b6b501acadc25eca41096123da45d3ac0a13f32dd550215"
+  }
+}
