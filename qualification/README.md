@@ -15,9 +15,12 @@ the scope-widening gates documented there.
 
 `determinism_audit.py` is the shared pre-gate for every reuse measurement:
 identical greedy requests repeated N times must return bit-identical
-completions on both the cold-prefill and the exact cache-replay path. Run it
-before any reuse matrix or canary; a backend that fails it has no
-deterministic reuse story to qualify. `llama_cpp_hybrid_ssm/` holds the
-candidate canary kit for hybrid attention+SSM backends, where prefix reuse
-silently changes meaning and stale or zeroed recurrent states change answers
-without failing any timing check.
+completions on both the cold-prefill and the exact cache-replay path. The
+runner scripts invoke it automatically as an abort-on-fail step 0 (pass
+`--device-label metal|cpu` to bind the evidence to the execution device), so
+a backend that fails it never reaches a reuse matrix or canary. The canary
+output embeds the full audit result, including the server build_info.
+`llama_cpp_hybrid_ssm/` holds the hybrid attention+SSM canary kit, where
+prefix reuse silently changes meaning and stale or zeroed recurrent states
+change answers without failing any timing check; it is qualified against the
+pinned source build (commit 465e49b9c) with `runtime_qualified: true`.

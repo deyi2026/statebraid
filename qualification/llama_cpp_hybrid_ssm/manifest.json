@@ -9,13 +9,14 @@
     "architecture": "hybrid attention + SSM"
   },
   "llama_cpp": {
-    "build": "0.3.0 (build 10621, commit c1d0e7a00)",
-    "source": "stock distribution build (homebrew), not the pinned StateBraid source build",
+    "build": "0.4.0-dev (build 1, commit 465e49b9c)",
+    "build_info": "b1-465e49b9c",
+    "source": "pinned source build (llama.cpp-statebraid-l1 checkout, Metal)",
     "launcher_flags": "--parallel 1 -c 8192 -ngl 999 --no-webui --slots --slot-save-path <scratch-dir>"
   },
   "loopback": "http://127.0.0.1:8902",
   "slots": 1,
-  "runtime_qualified": false,
-  "status": "candidate",
+  "runtime_qualified": true,
+  "status": "runtime_qualified",
   "recorded_at": "2026-09-17"
 }
