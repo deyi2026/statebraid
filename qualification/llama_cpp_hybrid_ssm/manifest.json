@@ -1,0 +1,21 @@
+{
+  "schema": "statebraid-llama-hybrid-ssm-qualification-v1",
+  "pinned_model": {
+    "basename": "Falcon-H1-0.5B-Instruct-Q4_K_M.gguf",
+    "bytes": 314806560,
+    "sha256": "138a37a94b9e313af4e22d4af46b8119b76a31afdd61cabbeae7010ae45d2ac6",
+    "quant": "Q4_K_M",
+    "family": "falcon-h1",
+    "architecture": "hybrid attention + SSM"
+  },
+  "llama_cpp": {
+    "build": "0.3.0 (build 10621, commit c1d0e7a00)",
+    "source": "stock distribution build (homebrew), not the pinned StateBraid source build",
+    "launcher_flags": "--parallel 1 -c 8192 -ngl 999 --no-webui --slots --slot-save-path <scratch-dir>"
+  },
+  "loopback": "http://127.0.0.1:8902",
+  "slots": 1,
+  "runtime_qualified": false,
+  "status": "candidate",
+  "recorded_at": "2026-09-17"
+}
