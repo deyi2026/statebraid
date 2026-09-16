@@ -21,6 +21,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import subprocess
 import sys
 import urllib.request
 from typing import Any
@@ -86,6 +88,36 @@ def erase(base_url: str) -> None:
 
 def digest(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def determinism_pre_gate(base_url: str, repeats: int, device_label: str) -> dict[str, Any]:
+    """Step 0 gate: greedy determinism audit must PASS before the canary runs."""
+    script = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "determinism_audit.py"
+    )
+    if not os.path.isfile(script):
+        raise SystemExit(
+            "determinism_audit.py not found next to the qualification kits; "
+            "the pre-gate is mandatory and cannot be skipped"
+        )
+    completed = subprocess.run(
+        [
+            sys.executable,
+            script,
+            "--base-url",
+            base_url,
+            "--repeats",
+            str(repeats),
+            "--device-label",
+            device_label,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    audit = json.loads(completed.stdout)
+    audit["exit_code"] = completed.returncode
+    return audit
 
 
 def run(base_url: str, n_predict: int) -> dict[str, Any]:
@@ -175,8 +207,25 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://127.0.0.1:8902")
     parser.add_argument("--n-predict", type=int, default=12)
+    parser.add_argument("--audit-repeats", type=int, default=4)
+    parser.add_argument("--device-label", default="unlabeled")
     args = parser.parse_args()
+    audit = determinism_pre_gate(args.base_url, args.audit_repeats, args.device_label)
+    if audit["status"] != "PASS" or audit["exit_code"] != 0:
+        print(
+            json.dumps(
+                {
+                    "status": "FAIL",
+                    "aborted_before_canary": True,
+                    "determinism_audit": audit,
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        raise SystemExit(2)
     result = run(args.base_url, args.n_predict)
+    result["determinism_audit"] = audit
     print(json.dumps(result, indent=2, ensure_ascii=False))
     raise SystemExit(0 if result["status"] == "PASS" else 2)
 
