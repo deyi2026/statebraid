@@ -26,10 +26,15 @@
       "R3_not_over_lcp": true,
       "erase_resets": true
     },
-    "hybrid_ssm_reuse_boundary": "On divergence after a 1065-token reused prefix, the slot reused 553 tokens where the true common prefix was 1059; llama.cpp truncates reuse at the last recurrent-state snapshot instead of the true token LCP. Reproduced bit-for-bit on both the stock 0.3.0 build (c1d0e7a00) and the pinned source build (465e49b9c): upstream behavior, not a distribution patch. Conservative and mechanically safe, but LCP-based accounting must not assume token-prefix reuse on hybrid backends."
+    "hybrid_ssm_reuse_boundary": "On divergence after a 1065-token reused prefix, the slot reused 553 tokens where the true common prefix was 1059; llama.cpp truncates reuse at the last recurrent-state snapshot instead of the true token LCP. Reproduced bit-for-bit across both builds tested (stock 0.3.0 c1d0e7a00 and pinned source 465e49b9c) and both devices tested (Metal and CPU): upstream, device-independent behavior. Conservative and mechanically safe, but LCP-based accounting must not assume token-prefix reuse on hybrid backends."
+  },
+  "device_tiers": {
+    "metal": {"audit": "PASS", "canary": "PASS", "raw": "mechanical_canary.json"},
+    "cpu": {"audit": "PASS", "canary": "PASS", "raw": "mechanical_canary_cpu.json"}
   },
   "raw_evidence_sha256": {
     "determinism_audit.json": "652bbd4fbd2e9b5b30f946b4b0474a06ff9f45b1947e43db40721dda99e4bffd",
-    "mechanical_canary.json": "6a473428d20bb44d85cb63534a10e6b43ba37f806c3411cb05d7e18df804c2d7"
+    "mechanical_canary.json": "6a473428d20bb44d85cb63534a10e6b43ba37f806c3411cb05d7e18df804c2d7",
+    "mechanical_canary_cpu.json": "031e2d4165949ec3d0acf89f87a5c3906fcd6b04fbfd5cb7566addec8950d53b"
   }
 }
