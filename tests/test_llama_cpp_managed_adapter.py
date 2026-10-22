@@ -270,6 +270,29 @@ class LlamaCppManagedAdapterTest(unittest.TestCase):
         self.assertEqual(transport.handles, {})
         self.assertEqual(cache.policy.n_sequences, 0)
 
+    def test_capture_stable_candidate_tuple_contract_and_evictions(self):
+        # J-round CI/pyright follow-up: capture_stable_candidate must unpack
+        # backend.capture_current's (state, evicted) tuple. Eviction notices
+        # surfaced by the capture are applied through the registry inside the
+        # guarded region, and admission still succeeds for the fresh handle.
+        transport = FakeManagedTransport()
+        cache = LlamaCppStateBraidPromptCache(
+            self.adapter(transport), max_sequences=2, max_bytes=1000
+        )
+        transport.capture_queue.append((2, 100))
+        self.assertTrue(cache.capture_and_admit([1, 2], role="active"))
+        doomed = next(iter(transport.handles))
+
+        transport.capture_evicted.append(doomed)
+        transport.capture_queue.append((3, 100))
+        self.assertTrue(cache.capture_stable_candidate([3, 4, 5]))
+        tracked = {s.handle for s in cache.backend.records.values()}
+        self.assertNotIn(doomed, tracked)  # eviction notice consumed
+        self.assertEqual(transport.handles.get(doomed), None)
+
+        transport.capture_queue.append((4, 100))
+        self.assertTrue(cache.capture_stable_candidate([9, 9, 9, 9]))
+
     def test_capture_token_mismatch_drops_remote_handle(self):
         transport = FakeManagedTransport()
         cache = LlamaCppStateBraidPromptCache(
