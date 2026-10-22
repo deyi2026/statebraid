@@ -45,7 +45,9 @@ def verify_source() -> None:
 
     if COMPUTE_CONTRACT_VERSION != "0.1":
         raise SystemExit(f"unexpected compute contract: {COMPUTE_CONTRACT_VERSION}")
-    if SUPPORT_SCOPE_VERSION != "0.1":
+    if SUPPORT_SCOPE_VERSION not in ("0.1", "0.2"):
+        # 0.1 = pre-release scope; 0.2 = 0.2.0 release that retired the unwired
+        # harness integration contract (J-round fix: CI allowlist lagged the bump)
         raise SystemExit(f"unexpected support scope: {SUPPORT_SCOPE_VERSION}")
 
     scope = support_scope()

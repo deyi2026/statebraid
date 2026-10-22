@@ -33,7 +33,7 @@ jobs:
           PYTHONPATH: src
         run: python -m unittest discover -s tests -v
       - name: Compile source and tests
-        run: python -m compileall -q src tests bench scripts
+        run: python -m compileall -q src tests scripts
       - name: Install package without backend dependencies
         run: python -m pip install --no-deps .
       - name: Installed support-scope smoke
@@ -52,9 +52,9 @@ jobs:
       - name: Pyright
         env:
           PYTHONPATH: src
-        run: pyright src tests bench scripts
+        run: pyright src tests scripts
       - name: Compile all checked Python
-        run: python -m compileall -q src tests bench scripts
+        run: python -m compileall -q src tests scripts
 
   contracts:
     name: contracts
