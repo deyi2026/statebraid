@@ -96,7 +96,7 @@ class QualificationAssetsTest(unittest.TestCase):
 
     def test_runner_sources_are_stable_and_do_not_write_repo_results(self) -> None:
         runners = sorted(QUALIFICATION.rglob("*.py"))
-        self.assertEqual(len(runners), 8)
+        self.assertEqual(len(runners), 9)  # J-round: determinism_audit_e1.py added (E1 2x2)
         for path in runners:
             text = path.read_text(encoding="utf-8")
             self.assertNotIn("__file__).with_name", text)
