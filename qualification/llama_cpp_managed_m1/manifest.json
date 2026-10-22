@@ -28,5 +28,12 @@
     "Linux/x86_64 qualification",
     "arbitrary GGUF/model-family qualification"
   ],
-  "evidence_note": "formal matrix and memory-pressure evidence was recorded against managed_source_sha 04329aacab48f91c79cd33490c2b4b33b29a7ef5; the source has since advanced (RAM budget cap, unused-handle eviction, evicted field) and requalification is pending"
+  "evidence_note": "deterministic unit gate re-run PASS against managed_source_sha 09a4891ddd3e546f29dffd38e1a00ab5a19085f6 on 2026-10-22 (rebuilt binary sha256 a9276e55c5e687d8dc8c40c265f2ffd6ce2bc1b40fcbe4181535218dea88aa9f, libllama-server-impl.dylib sha256 123979e74f4ae7515c6b9389d182b1c9b4d35ba86029e639a784cae6c6fdc366, tools/server/tests/unit/test_statebraid_managed_cache.py 9/9 passed, evidence analysis/statebraid_llama_managed_storage_m1_requal_20261022/); formal matrix, agent and memory-pressure evidence remains recorded against managed_source_sha 04329aacab48f91c79cd33490c2b4b33b29a7ef5, and the qualification model (sha256 c6afa34954c5e3abcc492e49b70ec6abfec1054a470f353f732739f9214a10a1) was deleted from the local-models store on 2026-10-14, so full requalification requires model restoration or an explicit new-model profile decision",
+  "recovery_decision": {
+    "decided": "2026-10-22",
+    "path": "C",
+    "decided_by": "user ('managed M1 恢复路径 A/B/C，按你的建议执行')",
+    "rationale": "A blocked: qualification model deleted 2026-10-14, full-disk search found no copy, no public download source, no external backup in evidence. B not chosen: scope change (new model -> new qualification profile -> manifest scope change) without current need. C accepted: determinism-level requalification stands for managed_source_sha 09a4891ddd3e546f29dffd38e1a00ab5a19085f6; real-GGUF claims remain explicitly bound to 04329aacab48f91c79cd33490c2b4b33b29a7ef5 + the deleted model and must not be cited as evidence for the current candidate.",
+    "revisit": "A becomes actionable if an external backup of the qualification model (sha256 c6afa34954c5e3abcc492e49b70ec6abfec1054a470f353f732739f9214a10a1) is supplied; B remains a scope-change option requiring explicit user request; either supersedes this decision with a full three-suite rerun (port-adapted, isolated)."
+  }
 }
