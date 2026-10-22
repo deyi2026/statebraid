@@ -275,7 +275,7 @@ class LlamaCppManagedHTTPAdapter(LlamaCppHTTPAdapter):
 
     def capture_current_state(
         self, expected_tokens: Sequence[int]
-    ) -> LlamaCppManagedStateHandle:
+    ) -> tuple[LlamaCppManagedStateHandle, list[str]]:
         tokens: list[int] = []
         for value in expected_tokens:
             if not isinstance(value, int) or isinstance(value, bool):
@@ -706,9 +706,14 @@ class LlamaCppStateBraidPromptCache:
 
     def capture_stable_candidate(self, state_tokens: Sequence[int]) -> bool:
         key = CacheKey.from_tokens(self.namespace, state_tokens)
-        state = self.backend.capture_current(key)
+        state, evicted = self.backend.capture_current(key)
         accepted = False
         try:
+            # eviction notices surfaced by this capture are applied inside the
+            # guarded region: a failure still releases the fresh handle via the
+            # existing except/finally (J-round review)
+            if evicted:
+                self.apply_remote_evictions(evicted)
             accepted = self.coordinator.admit_stable_candidate(
                 key, state, nbytes=state.nbytes
             )
